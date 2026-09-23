@@ -70,17 +70,11 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "https://wellsync-dh1tud0ko-tetrex1.vercel.app",
-        "https://wellsync-eight.vercel.app",
-    ],
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$|^https://[a-zA-Z0-9-]+\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 # =========================================================
 # DATA MODELS
 # =========================================================
