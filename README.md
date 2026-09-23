@@ -7,6 +7,13 @@ WELLsync is an AI-powered personal wellness companion designed to help users und
 Instead of simply collecting statistics, WELLsync connects everyday signals such as sleep, hydration, movement, screen time, mood, energy, and stress into one personalized wellness experience.
 
 ---
+# WELLsync
+
+> Understand your habits. Improve your everyday.
+
+## 🚀 Live Demo
+
+**https://wellsync-eight.vercel.app/**
 
 ## 🌱 Why WELLsync?
 
