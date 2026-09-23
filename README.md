@@ -1,16 +1,82 @@
-# React + Vite
+# WELLsync
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+> **Understand your habits. Improve your everyday.**
 
-Currently, two official plugins are available:
+WELLsync is an AI-powered personal wellness companion designed to help users understand their everyday habits, identify meaningful patterns, and turn wellness data into practical actions.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Instead of simply collecting statistics, WELLsync connects everyday signals such as sleep, hydration, movement, screen time, mood, energy, and stress into one personalized wellness experience.
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🌱 Why WELLsync?
 
-## Expanding the Oxlint configuration
+Modern wellness applications often track individual metrics separately.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+One application tracks sleep.  
+Another tracks activity.  
+Another focuses on reminders or mindfulness.
+
+The user is left to interpret all of that information themselves.
+
+**WELLsync brings these everyday wellness signals together and converts them into understandable insights and actionable guidance.**
+
+Our core philosophy is:
+
+> **Track → Analyze → Understand → Act**
+
+---
+
+## ✨ Core Features
+
+### 📊 Personal Wellness Dashboard
+
+A centralized dashboard that gives users an immediate overview of their current wellness state.
+
+It includes:
+
+- Wellness Score
+- Sleep
+- Hydration
+- Activity
+- Screen Time
+- Mood
+- Energy
+- Stress
+- Personalized priority signals
+
+---
+
+### ✅ Daily Check-In
+
+Users can record their everyday wellness information through a simple check-in.
+
+Tracked parameters include:
+
+- Sleep duration
+- Water intake
+- Steps
+- Screen time
+- Mood
+- Energy
+- Stress
+
+The information is analyzed immediately and synchronized with Supabase.
+
+---
+
+### 🤖 WELLsync AI
+
+WELLsync includes a conversational AI wellness companion.
+
+Users can ask questions such as:
+
+```text
+What should I focus on today?
+
+How is my sleep?
+
+Why is hydration a priority?
+
+Why is my wellness score 77?
+
+How can I improve my score?
