@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { calculateWellnessScore } from "../utils/wellnessScore";
+import { supabase } from "../lib/supabase";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -146,6 +147,36 @@ export default function Dashboard({
   onNavigate,
   dataSource = "local",
 }) {
+  const [userName, setUserName] = useState("there");
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadUserName() {
+      if (!supabase) return;
+
+      const { data, error } = await supabase.auth.getUser();
+
+      if (error) {
+        console.error("Could not load user name:", error);
+        return;
+      }
+
+      const fullName = data?.user?.user_metadata?.full_name;
+
+      if (mounted && fullName?.trim()) {
+        const firstName = fullName.trim().split(/\s+/)[0];
+        setUserName(firstName);
+      }
+    }
+
+    loadUserName();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const score = useMemo(() => {
     if (!latestData) return 0;
 
@@ -169,7 +200,7 @@ export default function Dashboard({
           <p className="dashboard-eyebrow">YOUR PERSONAL WELLNESS SPACE</p>
 
           <h1>
-            {getGreeting()}, <span>Kaushik.</span>
+            {getGreeting()}, <span>{userName}.</span>
           </h1>
 
           <p className="dashboard-subtitle">
@@ -384,7 +415,9 @@ export default function Dashboard({
           <section className="dashboard-journey-card">
             <div>
               <p className="dashboard-card-label">YOUR WELLNESS LOOP</p>
+
               <h2>Track → Analyze → Understand → Act</h2>
+
               <p>
                 Every check-in helps WELLsync understand your personal
                 patterns and turn them into practical actions.

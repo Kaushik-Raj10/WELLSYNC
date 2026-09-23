@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 function Auth() {
   const [mode, setMode] = useState("login");
 
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -19,6 +20,12 @@ function Auth() {
     setLoading(true);
     setMessage("");
     setError("");
+
+    if (!isLogin && !name.trim()) {
+      setError("Please enter your name.");
+      setLoading(false);
+      return;
+    }
 
     if (!email.trim() || !password.trim()) {
       setError("Please enter your email and password.");
@@ -44,6 +51,11 @@ function Auth() {
           await supabase.auth.signUp({
             email: email.trim(),
             password,
+            options: {
+              data: {
+                full_name: name.trim(),
+              },
+            },
           });
 
         if (signupError) {
@@ -74,6 +86,7 @@ function Auth() {
     setMode(isLogin ? "signup" : "login");
     setMessage("");
     setError("");
+    setName("");
   };
 
   return (
@@ -142,6 +155,23 @@ function Auth() {
           className="auth-form"
           onSubmit={handleSubmit}
         >
+
+          {!isLogin && (
+            <label>
+              Name
+
+              <input
+                type="text"
+                placeholder="Enter your name"
+                value={name}
+                onChange={(event) =>
+                  setName(event.target.value)
+                }
+                autoComplete="name"
+                disabled={loading}
+              />
+            </label>
+          )}
 
           <label>
             Email
