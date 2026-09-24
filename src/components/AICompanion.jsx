@@ -5,7 +5,11 @@ import {
   getCloudGoals,
 } from "../utils/supabaseData";
 
-import { getWellnessData } from "../utils/wellnessData";
+import {
+  getWellnessData,
+  getGoals,
+} from "../utils/wellnessData";
+
 import { calculateWellnessScore } from "../utils/wellnessScore";
 
 import "../App.css";
@@ -24,7 +28,9 @@ function normalizeWellnessData(data) {
 
   return {
     sleep: Number(data.sleep ?? 0),
+
     water: Number(data.water ?? 0),
+
     steps: Number(data.steps ?? 0),
 
     screenTime: Number(
@@ -34,7 +40,9 @@ function normalizeWellnessData(data) {
     ),
 
     mood: data.mood ?? "Okay",
+
     energy: Number(data.energy ?? 5),
+
     stress: Number(data.stress ?? 5),
   };
 }
@@ -45,7 +53,9 @@ function normalizeGoals(data) {
 
   return {
     sleep: Number(data.sleep ?? 7),
+
     water: Number(data.water ?? 6),
+
     steps: Number(data.steps ?? 6000),
 
     screenTime: Number(
@@ -77,25 +87,34 @@ function getMoodEmoji(mood) {
 function getPriorities(data, goals) {
   if (!data) return [];
 
-  const target = normalizeGoals(goals) || {
-    sleep: 7,
-    water: 6,
-    steps: 6000,
-    screenTime: 6,
-  };
+  const target =
+    normalizeGoals(goals) || {
+      sleep: 7,
+      water: 6,
+      steps: 6000,
+      screenTime: 6,
+    };
 
   const priorities = [];
 
   if (data.sleep < target.sleep) {
     priorities.push({
       area: "sleep",
+
       title: "Protect your sleep routine",
+
       shortTitle: "Sleep",
+
       icon: "🌙",
+
       gap: target.sleep - data.sleep,
-      weight: (target.sleep - data.sleep) * 20,
+
+      weight:
+        (target.sleep - data.sleep) * 20,
+
       action:
         "Create a consistent wind-down period tonight and protect your planned sleep window.",
+
       reason:
         `You're at ${data.sleep}h against a ${target.sleep}h goal.`,
     });
@@ -104,13 +123,21 @@ function getPriorities(data, goals) {
   if (data.water < target.water) {
     priorities.push({
       area: "hydration",
+
       title: "Close your hydration gap",
+
       shortTitle: "Hydration",
+
       icon: "💧",
+
       gap: target.water - data.water,
-      weight: (target.water - data.water) * 15,
+
+      weight:
+        (target.water - data.water) * 15,
+
       action:
         "Spread your remaining water intake across the rest of the day.",
+
       reason:
         `You're at ${data.water} glasses against a ${target.water}-glass goal.`,
     });
@@ -122,14 +149,21 @@ function getPriorities(data, goals) {
 
     priorities.push({
       area: "activity",
+
       title: "Add a little more movement",
+
       shortTitle: "Movement",
+
       icon: "🚶",
+
       gap,
+
       weight:
         (gap / Math.max(target.steps, 1)) * 100,
+
       action:
         "Add a short walk or a few movement breaks between study or work blocks.",
+
       reason:
         `You're at ${data.steps.toLocaleString()} steps against a ${target.steps.toLocaleString()}-step goal.`,
     });
@@ -141,13 +175,20 @@ function getPriorities(data, goals) {
 
     priorities.push({
       area: "screen",
+
       title: "Create a screen-free window",
+
       shortTitle: "Screen time",
+
       icon: "📱",
+
       gap: excess,
+
       weight: excess * 18,
+
       action:
         "Take one intentional screen-free break, especially around your recovery or bedtime routine.",
+
       reason:
         `You're at ${data.screenTime}h against a ${target.screenTime}h target.`,
     });
@@ -156,13 +197,21 @@ function getPriorities(data, goals) {
   if (data.stress >= 7) {
     priorities.push({
       area: "stress",
+
       title: "Create a recovery window",
+
       shortTitle: "Stress",
+
       icon: "🧘",
+
       gap: data.stress - 6,
-      weight: (data.stress - 6) * 25,
+
+      weight:
+        (data.stress - 6) * 25,
+
       action:
         "Pause from your current task for a few minutes, reset, then return to one manageable task.",
+
       reason:
         `Your current stress signal is ${data.stress}/10.`,
     });
@@ -171,13 +220,21 @@ function getPriorities(data, goals) {
   if (data.energy <= 4) {
     priorities.push({
       area: "energy",
+
       title: "Reduce the pressure on yourself",
+
       shortTitle: "Energy",
+
       icon: "⚡",
+
       gap: 5 - data.energy,
-      weight: (5 - data.energy) * 20,
+
+      weight:
+        (5 - data.energy) * 20,
+
       action:
         "Choose one meaningful task instead of trying to maximize your entire day.",
+
       reason:
         `Your current energy signal is ${data.energy}/10.`,
     });
@@ -203,10 +260,13 @@ function buildTodayPlan(
         title: "Complete your first check-in",
         icon: "✨",
       },
+
       actions: [
         {
           icon: "✓",
+
           title: "Complete Daily Check-In",
+
           description:
             "Give WELLsync your current sleep, hydration, activity, screen time, mood, energy and stress data.",
         },
@@ -226,22 +286,33 @@ function buildTodayPlan(
         title: "Maintain your rhythm",
         icon: "⚡",
       },
+
       actions: [
         {
           icon: "✓",
-          title: "Keep your current routine consistent",
+
+          title:
+            "Keep your current routine consistent",
+
           description:
             "Your tracked signals are currently around your goals, so consistency is more useful than adding lots of new habits.",
         },
+
         {
           icon: "🌱",
-          title: "Make one small improvement",
+
+          title:
+            "Make one small improvement",
+
           description:
             "Choose one habit that already feels manageable and make it slightly more consistent today.",
         },
+
         {
           icon: "💬",
+
           title: "Check back in",
+
           description:
             "Use WELLsync again after your next meaningful change so the system can track the pattern.",
         },
@@ -255,13 +326,16 @@ function buildTodayPlan(
   return {
     focus: {
       title: selected[0].title,
+
       icon: selected[0].icon,
     },
 
     actions: selected.map(
       (item) => ({
         icon: item.icon,
+
         title: item.title,
+
         description:
           item.action,
       })
@@ -281,6 +355,7 @@ function createInitialMessage(
   if (!data) {
     return {
       role: "assistant",
+
       content:
         "Hey! I'm WELLsync AI 👋\n\nComplete your Daily Check-In and I'll use your actual wellness context to make this conversation personal.",
     };
@@ -298,6 +373,7 @@ function createInitialMessage(
   if (priorities.length === 0) {
     return {
       role: "assistant",
+
       content:
         `Hey! I'm WELLsync AI 👋\n\nYour current wellness signal is ${score}/100. Your tracked habits are currently around your goals, so today's focus is consistency.\n\nAsk me about your score, sleep, hydration, activity, screen time, stress, energy, or what you should focus on today.`,
     };
@@ -305,9 +381,53 @@ function createInitialMessage(
 
   return {
     role: "assistant",
+
     content:
       `Hey! I'm WELLsync AI 👋\n\nYour current wellness signal is ${score}/100. The clearest opportunity right now is ${priorities[0].shortTitle.toLowerCase()}.\n\nAsk me anything about your routine and I'll use your current wellness context to answer.`,
   };
+}
+
+
+/* =========================================================
+   BACKEND HEALTH CHECK
+========================================================= */
+
+async function checkBackendHealth() {
+  const controller =
+    new AbortController();
+
+  const timeoutId =
+    setTimeout(() => {
+      controller.abort();
+    }, 5000);
+
+  try {
+    const response =
+      await fetch(
+        `${API_URL}/health`,
+        {
+          signal:
+            controller.signal,
+
+          cache: "no-store",
+        }
+      );
+
+    if (!response.ok) {
+      throw new Error(
+        `Health check returned ${response.status}`
+      );
+    }
+
+    const health =
+      await response.json();
+
+    return health.status === "healthy";
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 
@@ -316,20 +436,70 @@ function createInitialMessage(
 ========================================================= */
 
 export default function AICompanion() {
+
+  /*
+   * IMPORTANT:
+   * Start with local data immediately.
+   * This prevents the AI page from blocking on Supabase/Render.
+   */
+
+  const initialLocalData = (() => {
+    try {
+      return getWellnessData();
+    } catch {
+      return null;
+    }
+  })();
+
+  const initialLocalGoals = (() => {
+    try {
+      return getGoals();
+    } catch {
+      return null;
+    }
+  })();
+
+
   const [wellnessData, setWellnessData] =
-    useState(null);
+    useState(
+      normalizeWellnessData(
+        initialLocalData
+      )
+    );
 
   const [goals, setGoals] =
-    useState(null);
+    useState(
+      normalizeGoals(
+        initialLocalGoals
+      )
+    );
+
 
   const [messages, setMessages] =
-    useState([]);
+    useState([
+      createInitialMessage(
+        normalizeWellnessData(
+          initialLocalData
+        ),
+        normalizeGoals(
+          initialLocalGoals
+        )
+      ),
+    ]);
+
 
   const [input, setInput] =
     useState("");
 
+  /*
+   * Page no longer waits for network calls
+   * before becoming visible.
+   */
   const [loading, setLoading] =
-    useState(true);
+    useState(false);
+
+  const [refreshing, setRefreshing] =
+    useState(false);
 
   const [sending, setSending] =
     useState(false);
@@ -357,12 +527,14 @@ export default function AICompanion() {
       [wellnessData]
     );
 
+
   const normalizedGoals =
     useMemo(
       () =>
         normalizeGoals(goals),
       [goals]
     );
+
 
   const score =
     useMemo(() => {
@@ -372,6 +544,7 @@ export default function AICompanion() {
         normalizedData
       );
     }, [normalizedData]);
+
 
   const priorities =
     useMemo(
@@ -385,6 +558,7 @@ export default function AICompanion() {
         normalizedGoals,
       ]
     );
+
 
   const todayPlan =
     useMemo(
@@ -401,94 +575,199 @@ export default function AICompanion() {
 
 
   /* =======================================================
-     LOAD DATA
+     LOAD DATA IN BACKGROUND
   ======================================================= */
 
   async function loadWellnessContext() {
-    setLoading(true);
+    setRefreshing(true);
     setErrorMessage("");
 
-    let latestData = null;
-    let latestGoals = null;
+    /*
+     * Show local state immediately.
+     * Network requests happen after the page is already visible.
+     */
+
+    let localData = null;
+    let localGoals = null;
 
     try {
-      latestData =
-        await getLatestCloudCheckin();
-    } catch (error) {
-      console.warn(
-        "Cloud check-in unavailable:",
-        error
-      );
-    }
-
-    try {
-      latestGoals =
-        await getCloudGoals();
-    } catch (error) {
-      console.warn(
-        "Cloud goals unavailable:",
-        error
-      );
-    }
-
-    if (!latestData) {
-      try {
-        latestData =
-          getWellnessData();
-      } catch (error) {
-        console.warn(
-          "Local wellness data unavailable:",
-          error
+      localData =
+        normalizeWellnessData(
+          getWellnessData()
         );
-      }
+    } catch (error) {
+      console.warn(
+        "Local wellness data unavailable:",
+        error
+      );
     }
 
-    const data =
-      normalizeWellnessData(
-        latestData
+    try {
+      localGoals =
+        normalizeGoals(
+          getGoals()
+        );
+    } catch (error) {
+      console.warn(
+        "Local goals unavailable:",
+        error
       );
+    }
 
-    const goalData =
-      normalizeGoals(
-        latestGoals
+    if (localData) {
+      setWellnessData(
+        localData
       );
+    }
 
-    setWellnessData(data);
-    setGoals(goalData);
+    if (localGoals) {
+      setGoals(
+        localGoals
+      );
+    }
 
-    setMessages([
-      createInitialMessage(
-        data,
-        goalData
-      ),
+
+    /*
+     * Cloud requests run in parallel.
+     * The health check also runs in parallel and has
+     * a 5-second timeout.
+     */
+
+    const [
+      cloudCheckinResult,
+      cloudGoalsResult,
+      backendResult,
+    ] = await Promise.allSettled([
+      getLatestCloudCheckin(),
+
+      getCloudGoals(),
+
+      checkBackendHealth(),
     ]);
 
-    try {
-      const response =
-        await fetch(
-          `${API_URL}/health`
+
+    /* =====================================================
+       CLOUD CHECK-IN
+    ===================================================== */
+
+    let finalData = localData;
+
+    if (
+      cloudCheckinResult.status ===
+      "fulfilled"
+    ) {
+      const cloudData =
+        normalizeWellnessData(
+          cloudCheckinResult.value
         );
 
-      if (response.ok) {
-        const health =
-          await response.json();
+      if (cloudData) {
+        finalData =
+          cloudData;
 
-        setBackendOnline(
-          health.status === "healthy"
+        setWellnessData(
+          cloudData
         );
-      } else {
-        setBackendOnline(false);
       }
-    } catch (error) {
+    } else {
+      console.warn(
+        "Cloud check-in unavailable:",
+        cloudCheckinResult.reason
+      );
+    }
+
+
+    /* =====================================================
+       CLOUD GOALS
+    ===================================================== */
+
+    let finalGoals = localGoals;
+
+    if (
+      cloudGoalsResult.status ===
+      "fulfilled"
+    ) {
+      const cloudGoalData =
+        normalizeGoals(
+          cloudGoalsResult.value
+        );
+
+      if (cloudGoalData) {
+        finalGoals =
+          cloudGoalData;
+
+        setGoals(
+          cloudGoalData
+        );
+      }
+    } else {
+      console.warn(
+        "Cloud goals unavailable:",
+        cloudGoalsResult.reason
+      );
+    }
+
+
+    /* =====================================================
+       BACKEND STATUS
+    ===================================================== */
+
+    if (
+      backendResult.status ===
+      "fulfilled"
+    ) {
+      setBackendOnline(
+        backendResult.value === true
+      );
+    } else {
       setBackendOnline(false);
     }
 
-    setLoading(false);
+
+    /*
+     * Update only the initial assistant message.
+     *
+     * If the user has already started chatting,
+     * preserve the conversation.
+     */
+
+    setMessages(
+      (currentMessages) => {
+        if (
+          currentMessages.length !== 1 ||
+          currentMessages[0]?.role !==
+            "assistant"
+        ) {
+          return currentMessages;
+        }
+
+        return [
+          createInitialMessage(
+            finalData,
+            finalGoals
+          ),
+        ];
+      }
+    );
+
+
+    setRefreshing(false);
   }
 
 
   useEffect(() => {
-    loadWellnessContext();
+    /*
+     * Run after the first paint so the AI page
+     * becomes visible immediately.
+     */
+    const timer =
+      setTimeout(() => {
+        loadWellnessContext();
+      }, 0);
+
+    return () => {
+      clearTimeout(timer);
+    };
   }, []);
 
 
@@ -530,19 +809,21 @@ export default function AICompanion() {
 
     try {
       /*
-       * We send the last few messages so the backend
+       * Send the last few messages so the backend
        * can understand follow-up questions such as:
        *
        * "Why?"
        * "What about sleep?"
        * "How can I fix that?"
        */
+
       const conversation =
         updatedMessages
           .slice(-8)
           .map((message) => ({
             role:
               message.role,
+
             content:
               message.content,
           }));
@@ -559,10 +840,12 @@ export default function AICompanion() {
         conversation,
       };
 
+
       console.log(
         "WELLsync AI request:",
         requestBody
       );
+
 
       const response =
         await fetch(
@@ -582,24 +865,29 @@ export default function AICompanion() {
           }
         );
 
+
       if (!response.ok) {
         throw new Error(
           `AI server returned ${response.status}`
         );
       }
 
+
       const result =
         await response.json();
+
 
       console.log(
         "WELLsync AI response:",
         result
       );
 
+
       setAiSource(
         result.source ||
         "local-fallback"
       );
+
 
       const answer =
         result.response ||
@@ -607,15 +895,18 @@ export default function AICompanion() {
         result.reply ||
         "I couldn't generate a response right now.";
 
+
       setMessages(
         (current) => [
           ...current,
+
           {
             role: "assistant",
             content: answer,
           },
         ]
       );
+
     } catch (error) {
       console.error(
         "WELLsync AI error:",
@@ -623,19 +914,22 @@ export default function AICompanion() {
       );
 
       setErrorMessage(
-        "I couldn't connect to the AI service. Make sure the Python backend is running on port 8000."
+        "I couldn't connect to the AI service. Please check that the WELLsync backend is available and try again."
       );
 
       setMessages(
         (current) => [
           ...current,
+
           {
             role: "assistant",
+
             content:
-              "I couldn't reach the AI service right now. Please make sure the Python backend is running and try again.",
+              "I couldn't reach the AI service right now. Please check the backend connection and try again.",
           },
         ]
       );
+
     } finally {
       setSending(false);
     }
@@ -646,6 +940,7 @@ export default function AICompanion() {
     event
   ) {
     event.preventDefault();
+
     sendMessage();
   }
 
@@ -656,10 +951,15 @@ export default function AICompanion() {
 
   const suggestedQuestions = [
     "What should I focus on today?",
+
     "Why is my wellness score what it is?",
+
     "How can I improve my wellness score?",
+
     "How is my sleep today?",
+
     "Why is hydration a priority?",
+
     "What could be affecting my energy?",
   ];
 
@@ -969,6 +1269,7 @@ export default function AICompanion() {
             >
 
               <div>
+
                 <strong>
                   {score}
                 </strong>
@@ -976,6 +1277,7 @@ export default function AICompanion() {
                 <span>
                   /100
                 </span>
+
               </div>
 
             </div>
@@ -1007,80 +1309,101 @@ export default function AICompanion() {
           <div className="ai-context-grid">
 
             <div>
+
               <span>
                 🌙 Sleep
               </span>
+
               <strong>
                 {normalizedData
                   ? `${normalizedData.sleep}h`
                   : "—"}
               </strong>
+
             </div>
 
             <div>
+
               <span>
                 💧 Water
               </span>
+
               <strong>
                 {normalizedData
                   ? normalizedData.water
                   : "—"}
               </strong>
+
             </div>
 
             <div>
+
               <span>
                 🚶 Activity
               </span>
+
               <strong>
                 {normalizedData
                   ? normalizedData.steps.toLocaleString()
                   : "—"}
               </strong>
+
             </div>
 
             <div>
+
               <span>
                 📱 Screen
               </span>
+
               <strong>
                 {normalizedData
                   ? `${normalizedData.screenTime}h`
                   : "—"}
               </strong>
+
             </div>
 
             <div>
+
               <span>
                 {getMoodEmoji(
                   normalizedData?.mood
                 )} Mood
               </span>
+
               <strong>
                 {normalizedData?.mood || "—"}
               </strong>
+
             </div>
 
             <div>
+
               <span>
                 ⚡ Energy
               </span>
+
               <strong>
                 {normalizedData
                   ? `${normalizedData.energy}/10`
                   : "—"}
               </strong>
+
             </div>
 
             <div>
+
               <span>
                 🧠 Stress
               </span>
+
               <strong>
                 {normalizedData
                   ? `${normalizedData.stress}/10`
                   : "—"}
               </strong>
+
             </div>
 
           </div>
@@ -1181,40 +1504,52 @@ export default function AICompanion() {
               </p>
 
               <div>
+
                 <span>
                   Sleep
                 </span>
+
                 <strong>
                   {normalizedGoals.sleep}h
                 </strong>
+
               </div>
 
               <div>
+
                 <span>
                   Water
                 </span>
+
                 <strong>
                   {normalizedGoals.water}
                   {" "}glasses
                 </strong>
+
               </div>
 
               <div>
+
                 <span>
                   Steps
                 </span>
+
                 <strong>
                   {normalizedGoals.steps.toLocaleString()}
                 </strong>
+
               </div>
 
               <div>
+
                 <span>
                   Screen time
                 </span>
+
                 <strong>
                   {normalizedGoals.screenTime}h
                 </strong>
+
               </div>
 
             </div>
@@ -1228,11 +1563,13 @@ export default function AICompanion() {
               loadWellnessContext
             }
             disabled={
-              loading ||
+              refreshing ||
               sending
             }
           >
-            ↻ Refresh wellness context
+            {refreshing
+              ? "↻ Refreshing..."
+              : "↻ Refresh wellness context"}
           </button>
 
         </aside>
