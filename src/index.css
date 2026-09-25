@@ -1,12 +1,42 @@
-html {
+:root {
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #f6f8f7;
+  color: #f7f8ff;
+  background: #070912;
+  color-scheme: dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  --page-bg: #070912;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background: var(--page-bg);
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% -4%, rgba(112, 92, 255, .11), transparent 27%),
+    radial-gradient(circle at 91% 12%, rgba(38, 214, 195, .055), transparent 24%),
+    linear-gradient(180deg, #070912 0%, #080a12 48%, #070912 100%);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -10;
+  opacity: .35;
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,.024) 0, transparent 32%),
+    linear-gradient(rgba(255,255,255,.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.009) 1px, transparent 1px);
+  background-size: auto, 72px 72px, 72px 72px;
 }
 
 #root {
@@ -15,4 +45,36 @@ body {
 
 * {
   box-sizing: border-box;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: rgba(124, 100, 255, .32);
+  color: #fff;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.11);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }

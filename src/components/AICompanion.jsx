@@ -1,71 +1,73 @@
 import { useEffect, useMemo, useState } from "react";
 
 import {
-  getLatestCloudCheckin,
+  getCloudCheckins,
   getCloudGoals,
+  getLatestCloudCheckin,
 } from "../utils/supabaseData";
 
 import {
-  getWellnessData,
   getGoals,
+  getWellnessData,
+  getWellnessHistory,
 } from "../utils/wellnessData";
 
 import { calculateWellnessScore } from "../utils/wellnessScore";
+import "./AICompanion.css";
 
-import "../App.css";
-
-const API_URL =
-  import.meta.env.VITE_API_URL ||
-  "http://127.0.0.1:8000";
-
-
-/* =========================================================
-   DATA HELPERS
-========================================================= */
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 function normalizeWellnessData(data) {
   if (!data) return null;
 
   return {
     sleep: Number(data.sleep ?? 0),
-
     water: Number(data.water ?? 0),
-
     steps: Number(data.steps ?? 0),
-
-    screenTime: Number(
-      data.screenTime ??
-      data.screen_time ??
-      0
-    ),
-
+    screenTime: Number(data.screenTime ?? data.screen_time ?? 0),
     mood: data.mood ?? "Okay",
-
     energy: Number(data.energy ?? 5),
-
     stress: Number(data.stress ?? 5),
   };
 }
-
 
 function normalizeGoals(data) {
   if (!data) return null;
 
   return {
     sleep: Number(data.sleep ?? 7),
-
     water: Number(data.water ?? 6),
-
     steps: Number(data.steps ?? 6000),
-
-    screenTime: Number(
-      data.screenTime ??
-      data.screen_time ??
-      6
-    ),
+    screenTime: Number(data.screenTime ?? data.screen_time ?? 6),
   };
 }
 
+function normalizeHistory(rows) {
+  if (!Array.isArray(rows)) return [];
+
+  return rows
+    .filter(Boolean)
+    .map((item) => ({
+      date: item.date ?? null,
+      sleep: Number(item.sleep ?? 0),
+      water: Number(item.water ?? 0),
+      steps: Number(item.steps ?? 0),
+      screenTime: Number(item.screenTime ?? item.screen_time ?? 0),
+      mood: item.mood ?? "Okay",
+      energy: Number(item.energy ?? 5),
+      stress: Number(item.stress ?? 5),
+    }))
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+    .slice(-30);
+}
+
+function createWelcomeMessage() {
+  return {
+    role: "assistant",
+    content:
+      "Welcome to your WELLsync intelligence center.\n\nAsk about your routine, training, nutrition, recovery, goals, or the patterns inside your wellness data. I’ll use the context available to me and explain the reasoning in practical terms.",
+  };
+}
 
 function getMoodEmoji(mood) {
   const moods = {
@@ -79,10 +81,18 @@ function getMoodEmoji(mood) {
   return moods[mood] || "🙂";
 }
 
+function getModeLabel(mode) {
+  const labels = {
+    general: "General",
+    trainer: "Trainer",
+    nutrition: "Nutrition",
+    recovery: "Recovery",
+    data_analyst: "Data Analyst",
+    goals: "Goal Coach",
+  };
 
-/* =========================================================
-   PRIORITY ENGINE
-========================================================= */
+  return labels[mode] || "General";
+}
 
 function getPriorities(data, goals) {
   if (!data) return [];
@@ -98,1484 +108,627 @@ function getPriorities(data, goals) {
   const priorities = [];
 
   if (data.sleep < target.sleep) {
-    priorities.push({
-      area: "sleep",
-
-      title: "Protect your sleep routine",
-
-      shortTitle: "Sleep",
-
-      icon: "🌙",
-
-      gap: target.sleep - data.sleep,
-
-      weight:
-        (target.sleep - data.sleep) * 20,
-
-      action:
-        "Create a consistent wind-down period tonight and protect your planned sleep window.",
-
-      reason:
-        `You're at ${data.sleep}h against a ${target.sleep}h goal.`,
-    });
+    priorities.push({ label: "Sleep", value: `${data.sleep}h`, detail: `Goal ${target.sleep}h`, icon: "◐" });
   }
-
   if (data.water < target.water) {
-    priorities.push({
-      area: "hydration",
-
-      title: "Close your hydration gap",
-
-      shortTitle: "Hydration",
-
-      icon: "💧",
-
-      gap: target.water - data.water,
-
-      weight:
-        (target.water - data.water) * 15,
-
-      action:
-        "Spread your remaining water intake across the rest of the day.",
-
-      reason:
-        `You're at ${data.water} glasses against a ${target.water}-glass goal.`,
-    });
+    priorities.push({ label: "Hydration", value: `${data.water}`, detail: `Goal ${target.water}`, icon: "◇" });
   }
-
   if (data.steps < target.steps) {
-    const gap =
-      target.steps - data.steps;
-
-    priorities.push({
-      area: "activity",
-
-      title: "Add a little more movement",
-
-      shortTitle: "Movement",
-
-      icon: "🚶",
-
-      gap,
-
-      weight:
-        (gap / Math.max(target.steps, 1)) * 100,
-
-      action:
-        "Add a short walk or a few movement breaks between study or work blocks.",
-
-      reason:
-        `You're at ${data.steps.toLocaleString()} steps against a ${target.steps.toLocaleString()}-step goal.`,
-    });
+    priorities.push({ label: "Movement", value: data.steps.toLocaleString(), detail: `Goal ${target.steps.toLocaleString()}`, icon: "↗" });
   }
-
   if (data.screenTime > target.screenTime) {
-    const excess =
-      data.screenTime - target.screenTime;
-
-    priorities.push({
-      area: "screen",
-
-      title: "Create a screen-free window",
-
-      shortTitle: "Screen time",
-
-      icon: "📱",
-
-      gap: excess,
-
-      weight: excess * 18,
-
-      action:
-        "Take one intentional screen-free break, especially around your recovery or bedtime routine.",
-
-      reason:
-        `You're at ${data.screenTime}h against a ${target.screenTime}h target.`,
-    });
+    priorities.push({ label: "Screen time", value: `${data.screenTime}h`, detail: `Target ${target.screenTime}h`, icon: "□" });
   }
-
   if (data.stress >= 7) {
-    priorities.push({
-      area: "stress",
-
-      title: "Create a recovery window",
-
-      shortTitle: "Stress",
-
-      icon: "🧘",
-
-      gap: data.stress - 6,
-
-      weight:
-        (data.stress - 6) * 25,
-
-      action:
-        "Pause from your current task for a few minutes, reset, then return to one manageable task.",
-
-      reason:
-        `Your current stress signal is ${data.stress}/10.`,
-    });
+    priorities.push({ label: "Stress", value: `${data.stress}/10`, detail: "Recovery focus", icon: "∿" });
   }
-
   if (data.energy <= 4) {
-    priorities.push({
-      area: "energy",
-
-      title: "Reduce the pressure on yourself",
-
-      shortTitle: "Energy",
-
-      icon: "⚡",
-
-      gap: 5 - data.energy,
-
-      weight:
-        (5 - data.energy) * 20,
-
-      action:
-        "Choose one meaningful task instead of trying to maximize your entire day.",
-
-      reason:
-        `Your current energy signal is ${data.energy}/10.`,
-    });
+    priorities.push({ label: "Energy", value: `${data.energy}/10`, detail: "Protect your capacity", icon: "✦" });
   }
 
-  return priorities.sort(
-    (a, b) => b.weight - a.weight
+  return priorities;
+}
+
+function Metric({ label, value, suffix, accent }) {
+  return (
+    <div className={`ai-pro-metric ${accent ? `is-${accent}` : ""}`}>
+      <span>{label}</span>
+      <strong>
+        {value}
+        {suffix && <small>{suffix}</small>}
+      </strong>
+    </div>
   );
 }
 
+function ScoreRing({ score }) {
+  const degrees = `${Math.max(0, Math.min(score, 100)) * 3.6}deg`;
 
-/* =========================================================
-   TODAY'S PLAN
-========================================================= */
+  return (
+    <div
+      className="ai-pro-score-ring"
+      style={{
+        background: `conic-gradient(from -90deg, var(--ai-accent) ${degrees}, rgba(255,255,255,.08) ${degrees})`,
+      }}
+    >
+      <div className="ai-pro-score-ring-inner">
+        <span>WELLNESS</span>
+        <strong>{score}</strong>
+        <small>/100</small>
+      </div>
+    </div>
+  );
+}
 
-function buildTodayPlan(
-  data,
-  goals
-) {
-  if (!data) {
-    return {
-      focus: {
-        title: "Complete your first check-in",
-        icon: "✨",
-      },
+function TrendSparkline({ history }) {
+  const points = useMemo(() => {
+    return normalizeHistory(history)
+      .slice(-10)
+      .map((item, index) => ({
+        x: 12 + index * (176 / Math.max(normalizeHistory(history).slice(-10).length - 1, 1)),
+        y: 82 - (calculateWellnessScore(item) / 100) * 64,
+        score: calculateWellnessScore(item),
+      }));
+  }, [history]);
 
-      actions: [
-        {
-          icon: "✓",
-
-          title: "Complete Daily Check-In",
-
-          description:
-            "Give WELLsync your current sleep, hydration, activity, screen time, mood, energy and stress data.",
-        },
-      ],
-    };
-  }
-
-  const priorities =
-    getPriorities(
-      data,
-      goals
+  if (!points.length) {
+    return (
+      <div className="ai-pro-empty-trend">
+        <span>NO TREND YET</span>
+        <p>Complete more check-ins to unlock pattern analysis.</p>
+      </div>
     );
-
-  if (priorities.length === 0) {
-    return {
-      focus: {
-        title: "Maintain your rhythm",
-        icon: "⚡",
-      },
-
-      actions: [
-        {
-          icon: "✓",
-
-          title:
-            "Keep your current routine consistent",
-
-          description:
-            "Your tracked signals are currently around your goals, so consistency is more useful than adding lots of new habits.",
-        },
-
-        {
-          icon: "🌱",
-
-          title:
-            "Make one small improvement",
-
-          description:
-            "Choose one habit that already feels manageable and make it slightly more consistent today.",
-        },
-
-        {
-          icon: "💬",
-
-          title: "Check back in",
-
-          description:
-            "Use WELLsync again after your next meaningful change so the system can track the pattern.",
-        },
-      ],
-    };
   }
 
-  const selected =
-    priorities.slice(0, 3);
+  const line = points.map((point) => `${point.x},${point.y}`).join(" ");
+  const area = `${points[0].x},92 ${line} ${points[points.length - 1].x},92`;
 
-  return {
-    focus: {
-      title: selected[0].title,
-
-      icon: selected[0].icon,
-    },
-
-    actions: selected.map(
-      (item) => ({
-        icon: item.icon,
-
-        title: item.title,
-
-        description:
-          item.action,
-      })
-    ),
-  };
+  return (
+    <div className="ai-pro-trend-wrap">
+      <svg viewBox="0 0 200 100" role="img" aria-label="Recent wellness score trend">
+        <defs>
+          <linearGradient id="aiTrendFill" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="currentColor" stopOpacity=".22" />
+            <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={`M ${area.replaceAll(" ", " L ")}`} fill="url(#aiTrendFill)" stroke="none" />
+        <polyline points={line} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+        {points.map((point, index) => (
+          <circle key={`${point.x}-${index}`} cx={point.x} cy={point.y} r="2.6" fill="currentColor" />
+        ))}
+      </svg>
+      <div className="ai-pro-trend-meta">
+        <span>{points[0]?.score ?? 0} start</span>
+        <strong>{points[points.length - 1]?.score ?? 0} latest</strong>
+      </div>
+    </div>
+  );
 }
-
-
-/* =========================================================
-   INITIAL MESSAGE
-========================================================= */
-
-function createInitialMessage(
-  data,
-  goals
-) {
-  if (!data) {
-    return {
-      role: "assistant",
-
-      content:
-        "Hey! I'm WELLsync AI 👋\n\nComplete your Daily Check-In and I'll use your actual wellness context to make this conversation personal.",
-    };
-  }
-
-  const score =
-    calculateWellnessScore(data);
-
-  const priorities =
-    getPriorities(
-      data,
-      goals
-    );
-
-  if (priorities.length === 0) {
-    return {
-      role: "assistant",
-
-      content:
-        `Hey! I'm WELLsync AI 👋\n\nYour current wellness signal is ${score}/100. Your tracked habits are currently around your goals, so today's focus is consistency.\n\nAsk me about your score, sleep, hydration, activity, screen time, stress, energy, or what you should focus on today.`,
-    };
-  }
-
-  return {
-    role: "assistant",
-
-    content:
-      `Hey! I'm WELLsync AI 👋\n\nYour current wellness signal is ${score}/100. The clearest opportunity right now is ${priorities[0].shortTitle.toLowerCase()}.\n\nAsk me anything about your routine and I'll use your current wellness context to answer.`,
-  };
-}
-
-
-/* =========================================================
-   BACKEND HEALTH CHECK
-========================================================= */
-
-async function checkBackendHealth() {
-  const controller =
-    new AbortController();
-
-  const timeoutId =
-    setTimeout(() => {
-      controller.abort();
-    }, 5000);
-
-  try {
-    const response =
-      await fetch(
-        `${API_URL}/health`,
-        {
-          signal:
-            controller.signal,
-
-          cache: "no-store",
-        }
-      );
-
-    if (!response.ok) {
-      throw new Error(
-        `Health check returned ${response.status}`
-      );
-    }
-
-    const health =
-      await response.json();
-
-    return health.status === "healthy";
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-
-/* =========================================================
-   COMPONENT
-========================================================= */
 
 export default function AICompanion() {
-
-  /*
-   * IMPORTANT:
-   * Start with local data immediately.
-   * This prevents the AI page from blocking on Supabase/Render.
-   */
-
-  const initialLocalData = (() => {
+  const localData = useMemo(() => {
     try {
-      return getWellnessData();
+      return normalizeWellnessData(getWellnessData());
     } catch {
       return null;
     }
-  })();
+  }, []);
 
-  const initialLocalGoals = (() => {
+  const localGoals = useMemo(() => {
     try {
-      return getGoals();
+      return normalizeGoals(getGoals());
     } catch {
       return null;
     }
-  })();
+  }, []);
 
+  const localHistory = useMemo(() => {
+    try {
+      return normalizeHistory(getWellnessHistory());
+    } catch {
+      return [];
+    }
+  }, []);
 
-  const [wellnessData, setWellnessData] =
-    useState(
-      normalizeWellnessData(
-        initialLocalData
-      )
-    );
+  const [wellnessData, setWellnessData] = useState(localData);
+  const [goals, setGoals] = useState(localGoals);
+  const [history, setHistory] = useState(localHistory);
+  const [messages, setMessages] = useState([createWelcomeMessage()]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [backendOnline, setBackendOnline] = useState(false);
+  const [agenticMode, setAgenticMode] = useState(false);
+  const [aiSource, setAiSource] = useState("gemini");
+  const [webMode, setWebMode] = useState("auto");
+  const [webSearchAvailable, setWebSearchAvailable] = useState(false);
+  const [currentMode, setCurrentMode] = useState("general");
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const [goals, setGoals] =
-    useState(
-      normalizeGoals(
-        initialLocalGoals
-      )
-    );
+  const normalizedData = useMemo(() => normalizeWellnessData(wellnessData), [wellnessData]);
+  const normalizedGoals = useMemo(() => normalizeGoals(goals), [goals]);
+  const normalizedHistory = useMemo(() => normalizeHistory(history), [history]);
 
+  const score = useMemo(() => {
+    if (!normalizedData) return 0;
+    return calculateWellnessScore(normalizedData);
+  }, [normalizedData]);
 
-  const [messages, setMessages] =
-    useState([
-      createInitialMessage(
-        normalizeWellnessData(
-          initialLocalData
-        ),
-        normalizeGoals(
-          initialLocalGoals
-        )
-      ),
-    ]);
-
-
-  const [input, setInput] =
-    useState("");
-
-  /*
-   * Page no longer waits for network calls
-   * before becoming visible.
-   */
-  const [loading, setLoading] =
-    useState(false);
-
-  const [refreshing, setRefreshing] =
-    useState(false);
-
-  const [sending, setSending] =
-    useState(false);
-
-  const [backendOnline, setBackendOnline] =
-    useState(false);
-
-  const [aiSource, setAiSource] =
-    useState("local-fallback");
-
-  const [errorMessage, setErrorMessage] =
-    useState("");
-
-
-  /* =======================================================
-     DERIVED
-  ======================================================= */
-
-  const normalizedData =
-    useMemo(
-      () =>
-        normalizeWellnessData(
-          wellnessData
-        ),
-      [wellnessData]
-    );
-
-
-  const normalizedGoals =
-    useMemo(
-      () =>
-        normalizeGoals(goals),
-      [goals]
-    );
-
-
-  const score =
-    useMemo(() => {
-      if (!normalizedData) return 0;
-
-      return calculateWellnessScore(
-        normalizedData
-      );
-    }, [normalizedData]);
-
-
-  const priorities =
-    useMemo(
-      () =>
-        getPriorities(
-          normalizedData,
-          normalizedGoals
-        ),
-      [
-        normalizedData,
-        normalizedGoals,
-      ]
-    );
-
-
-  const todayPlan =
-    useMemo(
-      () =>
-        buildTodayPlan(
-          normalizedData,
-          normalizedGoals
-        ),
-      [
-        normalizedData,
-        normalizedGoals,
-      ]
-    );
-
-
-  /* =======================================================
-     LOAD DATA IN BACKGROUND
-  ======================================================= */
+  const priorities = useMemo(
+    () => getPriorities(normalizedData, normalizedGoals),
+    [normalizedData, normalizedGoals]
+  );
 
   async function loadWellnessContext() {
     setRefreshing(true);
-    setErrorMessage("");
 
-    /*
-     * Show local state immediately.
-     * Network requests happen after the page is already visible.
-     */
-
-    let localData = null;
-    let localGoals = null;
-
-    try {
-      localData =
-        normalizeWellnessData(
-          getWellnessData()
-        );
-    } catch (error) {
-      console.warn(
-        "Local wellness data unavailable:",
-        error
-      );
-    }
-
-    try {
-      localGoals =
-        normalizeGoals(
-          getGoals()
-        );
-    } catch (error) {
-      console.warn(
-        "Local goals unavailable:",
-        error
-      );
-    }
-
-    if (localData) {
-      setWellnessData(
-        localData
-      );
-    }
-
-    if (localGoals) {
-      setGoals(
-        localGoals
-      );
-    }
-
-
-    /*
-     * Cloud requests run in parallel.
-     * The health check also runs in parallel and has
-     * a 5-second timeout.
-     */
-
-    const [
-      cloudCheckinResult,
-      cloudGoalsResult,
-      backendResult,
-    ] = await Promise.allSettled([
+    const results = await Promise.allSettled([
       getLatestCloudCheckin(),
-
       getCloudGoals(),
-
-      checkBackendHealth(),
+      getCloudCheckins(),
     ]);
 
+    const cloudData = results[0].status === "fulfilled" ? normalizeWellnessData(results[0].value) : null;
+    const cloudGoals = results[1].status === "fulfilled" ? normalizeGoals(results[1].value) : null;
+    const cloudHistory = results[2].status === "fulfilled" ? normalizeHistory(results[2].value) : [];
 
-    /* =====================================================
-       CLOUD CHECK-IN
-    ===================================================== */
+    if (cloudData) setWellnessData(cloudData);
+    if (cloudGoals) setGoals(cloudGoals);
+    if (cloudHistory.length) setHistory(cloudHistory);
 
-    let finalData = localData;
-
-    if (
-      cloudCheckinResult.status ===
-      "fulfilled"
-    ) {
-      const cloudData =
-        normalizeWellnessData(
-          cloudCheckinResult.value
-        );
-
-      if (cloudData) {
-        finalData =
-          cloudData;
-
-        setWellnessData(
-          cloudData
-        );
-      }
-    } else {
-      console.warn(
-        "Cloud check-in unavailable:",
-        cloudCheckinResult.reason
-      );
-    }
-
-
-    /* =====================================================
-       CLOUD GOALS
-    ===================================================== */
-
-    let finalGoals = localGoals;
-
-    if (
-      cloudGoalsResult.status ===
-      "fulfilled"
-    ) {
-      const cloudGoalData =
-        normalizeGoals(
-          cloudGoalsResult.value
-        );
-
-      if (cloudGoalData) {
-        finalGoals =
-          cloudGoalData;
-
-        setGoals(
-          cloudGoalData
-        );
-      }
-    } else {
-      console.warn(
-        "Cloud goals unavailable:",
-        cloudGoalsResult.reason
-      );
-    }
-
-
-    /* =====================================================
-       BACKEND STATUS
-    ===================================================== */
-
-    if (
-      backendResult.status ===
-      "fulfilled"
-    ) {
-      setBackendOnline(
-        backendResult.value === true
-      );
-    } else {
+    try {
+      const response = await fetch(`${API_URL}/health`, { cache: "no-store" });
+      const health = await response.json();
+      setBackendOnline(response.ok && health.status === "healthy");
+      setAgenticMode(Boolean(health.automatic_function_calling || health.agentic_mode));
+      setWebSearchAvailable(Boolean(health.web_search_available));
+    } catch {
       setBackendOnline(false);
+      setAgenticMode(false);
+      setWebSearchAvailable(false);
     }
-
-
-    /*
-     * Update only the initial assistant message.
-     *
-     * If the user has already started chatting,
-     * preserve the conversation.
-     */
-
-    setMessages(
-      (currentMessages) => {
-        if (
-          currentMessages.length !== 1 ||
-          currentMessages[0]?.role !==
-            "assistant"
-        ) {
-          return currentMessages;
-        }
-
-        return [
-          createInitialMessage(
-            finalData,
-            finalGoals
-          ),
-        ];
-      }
-    );
-
 
     setRefreshing(false);
   }
 
-
   useEffect(() => {
-    /*
-     * Run after the first paint so the AI page
-     * becomes visible immediately.
-     */
-    const timer =
-      setTimeout(() => {
-        loadWellnessContext();
-      }, 0);
+    const timer = setTimeout(loadWellnessContext, 0);
 
-    return () => {
-      clearTimeout(timer);
-    };
+    return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    let pendingPrompt = "";
+    let pendingMode = "";
 
-  /* =======================================================
-     SEND MESSAGE
-  ======================================================= */
+    try {
+      pendingPrompt = sessionStorage.getItem("wellsync_ai_prompt") || "";
+      pendingMode = sessionStorage.getItem("wellsync_ai_mode") || "";
 
-  async function sendMessage(
-    text = input
-  ) {
-    const cleanText =
-      String(text || "").trim();
-
-    if (
-      !cleanText ||
-      sending
-    ) {
-      return;
+      sessionStorage.removeItem("wellsync_ai_prompt");
+      sessionStorage.removeItem("wellsync_ai_mode");
+    } catch {
+      return undefined;
     }
 
+    if (!pendingPrompt) return undefined;
+
+    if (pendingMode) {
+      setCurrentMode(pendingMode);
+    }
+
+    const timer = setTimeout(() => {
+      sendMessage(pendingPrompt);
+    }, 180);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  async function sendMessage(text = input) {
+    const cleanText = String(text || "").trim();
+    if (!cleanText || sending) return;
+
     setErrorMessage("");
-
-    const userMessage = {
-      role: "user",
-      content: cleanText,
-    };
-
-    const updatedMessages = [
-      ...messages,
-      userMessage,
-    ];
-
-    setMessages(
-      updatedMessages
-    );
-
+    const userMessage = { role: "user", content: cleanText };
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setInput("");
     setSending(true);
 
     try {
-      /*
-       * Send the last few messages so the backend
-       * can understand follow-up questions such as:
-       *
-       * "Why?"
-       * "What about sleep?"
-       * "How can I fix that?"
-       */
-
-      const conversation =
-        updatedMessages
-          .slice(-8)
-          .map((message) => ({
-            role:
-              message.role,
-
-            content:
-              message.content,
-          }));
+      const conversation = updatedMessages.slice(-10).map((message) => ({
+        role: message.role,
+        content: message.content,
+      }));
 
       const requestBody = {
         message: cleanText,
-
-        wellness_data:
-          normalizedData,
-
-        goals:
-          normalizedGoals,
-
+        wellness_data: normalizedData,
+        goals: normalizedGoals,
+        history: currentMode === "data_analyst" ? normalizedHistory.slice(-30) : normalizedHistory.slice(-7),
+        device_data: {},
+        profile: {},
+        mode: currentMode,
+        web_mode: webMode,
         conversation,
       };
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-      console.log(
-        "WELLsync AI request:",
-        requestBody
-      );
-
-
-      const response =
-        await fetch(
-          `${API_URL}/ai/chat`,
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-
-            body:
-              JSON.stringify(
-                requestBody
-              ),
-          }
-        );
-
-
-      if (!response.ok) {
-        throw new Error(
-          `AI server returned ${response.status}`
-        );
+      let response;
+      try {
+        response = await fetch(`${API_URL}/ai/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
       }
 
+      let result = null;
+      try {
+        result = await response.json();
+      } catch {
+        result = null;
+      }
 
-      const result =
-        await response.json();
+      if (!response.ok) {
+        throw new Error(result?.detail || `AI server returned ${response.status}`);
+      }
 
+      setBackendOnline(true);
+      setAiSource(result?.source || "gemini");
 
-      console.log(
-        "WELLsync AI response:",
-        result
-      );
+      if (result?.mode) setCurrentMode(result.mode);
 
-
-      setAiSource(
-        result.source ||
-        "local-fallback"
-      );
-
-
-      const answer =
-        result.response ||
-        result.message ||
-        result.reply ||
-        "I couldn't generate a response right now.";
-
-
-      setMessages(
-        (current) => [
-          ...current,
-
-          {
-            role: "assistant",
-            content: answer,
-          },
-        ]
-      );
-
+      setMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          content: result?.response || "I couldn't generate a response right now.",
+          webGrounded: Boolean(result?.web_grounded),
+          webSources: Array.isArray(result?.web_sources) ? result.web_sources : [],
+          webQueries: Array.isArray(result?.web_search_queries) ? result.web_search_queries : [],
+        },
+      ]);
     } catch (error) {
-      console.error(
-        "WELLsync AI error:",
-        error
-      );
+      const message =
+        error?.name === "AbortError"
+          ? "The AI took too long to respond. Please try again."
+          : error?.message || "The AI service is temporarily unavailable.";
 
-      setErrorMessage(
-        "I couldn't connect to the AI service. Please check that the WELLsync backend is available and try again."
-      );
-
-      setMessages(
-        (current) => [
-          ...current,
-
-          {
-            role: "assistant",
-
-            content:
-              "I couldn't reach the AI service right now. Please check the backend connection and try again.",
-          },
-        ]
-      );
-
+      setErrorMessage(message);
+      setMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          content: "I couldn't complete that request. Check the connection status and try again.",
+        },
+      ]);
     } finally {
       setSending(false);
     }
   }
 
-
-  function handleSubmit(
-    event
-  ) {
+  function handleSubmit(event) {
     event.preventDefault();
-
     sendMessage();
   }
 
-
-  /* =======================================================
-     SUGGESTED QUESTIONS
-  ======================================================= */
-
-  const suggestedQuestions = [
-    "What should I focus on today?",
-
-    "Why is my wellness score what it is?",
-
-    "How can I improve my wellness score?",
-
-    "How is my sleep today?",
-
-    "Why is hydration a priority?",
-
-    "What could be affecting my energy?",
-  ];
-
-
-  /* =======================================================
-     LOADING
-  ======================================================= */
-
-  if (loading) {
-    return (
-      <div className="ai-page-loading">
-        <div className="loading-spinner" />
-
-        <p>
-          Building your personalized wellness context...
-        </p>
-      </div>
-    );
+  function resetConversation() {
+    setMessages([createWelcomeMessage()]);
+    setErrorMessage("");
+    setInput("");
   }
 
+  const modes = [
+    { id: "general", icon: "✦", label: "General" },
+    { id: "trainer", icon: "↗", label: "Trainer" },
+    { id: "nutrition", icon: "⌘", label: "Nutrition" },
+    { id: "recovery", icon: "◐", label: "Recovery" },
+    { id: "data_analyst", icon: "⌁", label: "Data" },
+    { id: "goals", icon: "◎", label: "Goals" },
+  ];
 
-  /* =======================================================
-     UI
-  ======================================================= */
+  const webModes = [
+    {
+      id: "auto",
+      icon: "✦",
+      label: "Auto",
+      description: "AI decides when live web context is useful",
+    },
+    {
+      id: "live_web",
+      icon: "◎",
+      label: "Live Web",
+      description: "Search current public web information",
+    },
+    {
+      id: "personal_data",
+      icon: "◌",
+      label: "Personal Data",
+      description: "Use WELLsync context without web search",
+    },
+  ];
+
+  const webModeLabel = webModes.find((item) => item.id === webMode)?.label || "Auto";
+
+  function openWebSource(url) {
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  const suggestedQuestions = {
+    general: ["What deserves my attention today?", "Explain what changed in my wellness."],
+    trainer: ["Create a beginner full-body workout for today.", "Build me a short movement session."],
+    nutrition: ["Give me balanced meal ideas for today.", "Suggest a quick breakfast with good variety."],
+    recovery: ["How can I make tonight more restorative?", "Help me improve my evening routine."],
+    data_analyst: ["Analyze my wellness trends.", "What patterns are visible in my recent data?"],
+    goals: ["Which goal needs attention today?", "Help me build a realistic routine around my goals."],
+  };
 
   return (
-    <div className="ai-page">
+    <div className="ai-pro-page">
+      <div className="ai-pro-orb ai-pro-orb-one" />
+      <div className="ai-pro-orb ai-pro-orb-two" />
 
-      {/* =================================================
-          HEADER
-      ================================================= */}
-
-      <div className="ai-page-header">
-
+      <header className="ai-pro-header">
         <div>
-
-          <p className="dashboard-eyebrow">
-            YOUR INTELLIGENT WELLNESS COMPANION
-          </p>
-
-          <h1>
-            Talk to{" "}
-            <span>
-              WELLsync AI.
-            </span>
-          </h1>
-
-          <p className="ai-page-subtitle">
-            Ask questions, understand your
-            patterns, and decide what to focus
-            on next.
-          </p>
-
+          <div className="ai-pro-kicker"><span>✦</span> INTELLIGENCE CENTER</div>
+          <h1>Ask WELLsync <em>anything.</em></h1>
+          <p>One adaptive AI layer for your routine, goals, training, nutrition, recovery, and personal wellness data.</p>
         </div>
 
-
-        <div className="ai-status-group">
-
-          <div className="ai-status-pill">
-
-            <span
-              className={`ai-status-dot ${
-                backendOnline
-                  ? "online"
-                  : ""
-              }`}
-            />
-
-            {backendOnline
-              ? "AI service online"
-              : "AI service offline"}
-
+        <div className="ai-pro-header-actions">
+          <div className={`ai-pro-connection ${backendOnline ? "online" : ""}`}>
+            <span className="ai-pro-connection-dot" />
+            {backendOnline ? "AI online" : "Connecting..."}
           </div>
-
-
-          <div className="ai-source-pill">
-
-            {aiSource === "openai"
-              ? "Powered by OpenAI"
-              : "Personalized local mode"}
-
+          <div className="ai-pro-engine">
+            <span>ENGINE</span>
+            {String(aiSource).toLowerCase().includes("gemini") ? "Gemini" : "AI"}
           </div>
-
+          <div className={`ai-pro-web-status ${webSearchAvailable && webMode !== "personal_data" ? "enabled" : ""}`}>
+            <span>WEB</span>
+            {webSearchAvailable && webMode !== "personal_data" ? "Available" : "Off"}
+          </div>
+          <button type="button" className="ai-pro-icon-button" onClick={resetConversation} title="Reset conversation">↻</button>
+          <button type="button" className="ai-pro-icon-button" onClick={loadWellnessContext} disabled={refreshing} title="Refresh context">{refreshing ? "…" : "⟳"}</button>
         </div>
+      </header>
 
+      {errorMessage && <div className="ai-pro-error">{errorMessage}</div>}
+
+      <section className="ai-pro-intel-strip">
+        <div className="ai-pro-intel-main">
+          <div className="ai-pro-badge">✦ {webMode === "live_web" ? "LIVE WEB + CONTEXT" : webMode === "personal_data" ? "PERSONAL CONTEXT" : "LIVE CONTEXT"}</div>
+          <h2>
+            {normalizedData
+              ? `Your current wellness signal is ${score}/100.`
+              : "Your AI workspace is ready."}
+          </h2>
+          <p>
+            {normalizedData
+              ? `WELLsync is using ${normalizedHistory.length || 1} recent check-in${normalizedHistory.length === 1 ? "" : "s"}, your current goals, and today’s signals.`
+              : "Complete a daily check-in to give the AI more personal context."}
+          </p>
+        </div>
+        <div className="ai-pro-intel-stats">
+          <div><strong>{normalizedHistory.length}</strong><span>check-ins</span></div>
+          <div><strong>{priorities.length || 0}</strong><span>focus areas</span></div>
+          <div><strong>{agenticMode ? "ON" : "—"}</strong><span>agent tools</span></div>
+          <div><strong>{webMode === "live_web" ? "WEB" : webMode === "personal_data" ? "DATA" : "AUTO"}</strong><span>web policy</span></div>
+        </div>
+      </section>
+
+      <section className="ai-pro-web-rail">
+        <div className="ai-pro-web-title">
+          <span>KNOWLEDGE ACCESS</span>
+          <strong>{webModeLabel}</strong>
+        </div>
+        <div className="ai-pro-web-buttons">
+          {webModes.map((mode) => (
+            <button
+              key={mode.id}
+              type="button"
+              className={webMode === mode.id ? "active" : ""}
+              disabled={sending || (mode.id !== "personal_data" && !webSearchAvailable)}
+              onClick={() => setWebMode(mode.id)}
+              title={webSearchAvailable || mode.id === "personal_data" ? mode.description : "Live web access is unavailable on the backend"}
+            >
+              <span>{mode.icon}</span>
+              <div>
+                <strong>{mode.label}</strong>
+                <small>{mode.description}</small>
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <div className="ai-pro-mode-rail">
+        <div className="ai-pro-mode-title"><span>ASK MODE</span><strong>{getModeLabel(currentMode)}</strong></div>
+        <div className="ai-pro-mode-buttons">
+          {modes.map((mode) => (
+            <button
+              key={mode.id}
+              type="button"
+              className={currentMode === mode.id ? "active" : ""}
+              disabled={sending}
+              onClick={() => setCurrentMode(mode.id)}
+            >
+              <span>{mode.icon}</span>{mode.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-
-      {/* =================================================
-          ERROR
-      ================================================= */}
-
-      {errorMessage && (
-        <div className="ai-error-banner">
-          {errorMessage}
-        </div>
-      )}
-
-
-      {/* =================================================
-          WORKSPACE
-      ================================================= */}
-
-      <div className="ai-workspace">
-
-        {/* =================================================
-            CHAT
-        ================================================= */}
-
-        <section className="ai-chat-panel">
-
-          <div className="ai-chat-header">
-
-            <div className="ai-chat-avatar">
-              ✦
+      <main className="ai-pro-layout">
+        <section className="ai-pro-chat-card">
+          <div className="ai-pro-chat-topbar">
+            <div className="ai-pro-agent">
+              <div className="ai-pro-agent-mark">✦</div>
+              <div>
+                <strong>WELLsync AI</strong>
+                <span>{agenticMode ? `Agentic context active · ${webMode === "live_web" ? "live web enabled" : webMode === "personal_data" ? "personal data only" : "web auto"}` : "Context-aware wellness AI"}</span>
+              </div>
             </div>
-
-            <div>
-
-              <h2>
-                WELLsync AI
-              </h2>
-
-              <p>
-                Context-aware wellness conversation
-              </p>
-
-            </div>
-
-            <div className="ai-chat-live">
-
-              <span />
-
-              Ready
-
-            </div>
-
+            <div className="ai-pro-mode-indicator">{getModeLabel(currentMode)}</div>
           </div>
 
-
-          <div className="ai-messages">
-
-            {messages.map(
-              (message, index) => {
-
-                const isUser =
-                  message.role ===
-                  "user";
-
-                return (
-                  <div
-                    key={`${message.role}-${index}`}
-                    className={`ai-message-row ${
-                      isUser
-                        ? "user-message-row"
-                        : "assistant-message-row"
-                    }`}
-                  >
-
-                    {!isUser && (
-                      <div className="ai-message-avatar">
-                        ✦
+          <div className="ai-pro-message-list">
+            {messages.map((message, index) => {
+              const isUser = message.role === "user";
+              return (
+                <div key={`${message.role}-${index}`} className={`ai-pro-message-row ${isUser ? "user" : "assistant"}`}>
+                  {!isUser && <div className="ai-pro-message-mark">✦</div>}
+                  <div className={`ai-pro-message-bubble ${isUser ? "user" : "assistant"}`}>
+                    {String(message.content).split("\n").map((line, lineIndex) => (
+                      <p key={lineIndex}>{line || "\u00A0"}</p>
+                    ))}
+                    {!isUser && message.webGrounded && message.webSources?.length > 0 && (
+                      <div className="ai-pro-web-sources">
+                        <div className="ai-pro-web-sources-head">
+                          <span>⌁ LIVE WEB RESEARCH</span>
+                          <strong>{message.webSources.length} source{message.webSources.length === 1 ? "" : "s"}</strong>
+                        </div>
+                        <div className="ai-pro-web-source-list">
+                          {message.webSources.slice(0, 5).map((source, sourceIndex) => (
+                            <button
+                              key={`${source.url}-${sourceIndex}`}
+                              type="button"
+                              onClick={() => openWebSource(source.url)}
+                              title={source.url}
+                            >
+                              <span className="ai-pro-web-source-index">{sourceIndex + 1}</span>
+                              <span className="ai-pro-web-source-copy">
+                                <strong>{source.title || "Web source"}</strong>
+                                <small>{source.url}</small>
+                              </span>
+                              <span className="ai-pro-web-source-arrow">↗</span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
-
-                    <div
-                      className={`ai-message ${
-                        isUser
-                          ? "user-message"
-                          : "assistant-message"
-                      }`}
-                    >
-                      {message.content}
-                    </div>
-
                   </div>
-                );
-              }
-            )}
-
+                </div>
+              );
+            })}
 
             {sending && (
-              <div className="ai-message-row assistant-message-row">
-
-                <div className="ai-message-avatar">
-                  ✦
+              <div className="ai-pro-message-row assistant">
+                <div className="ai-pro-message-mark">✦</div>
+                <div className="ai-pro-message-bubble assistant ai-pro-typing">
+                  <span /><span /><span />
                 </div>
-
-                <div className="ai-message assistant-message ai-typing">
-
-                  <span />
-                  <span />
-                  <span />
-
-                </div>
-
               </div>
             )}
-
           </div>
 
-
-          {/* Suggested prompts */}
-
-          <div className="ai-suggestions">
-
-            {suggestedQuestions.map(
-              (question) => (
-                <button
-                  key={question}
-                  type="button"
-                  disabled={sending}
-                  onClick={() =>
-                    sendMessage(
-                      question
-                    )
-                  }
-                >
-                  {question}
+          <div className="ai-pro-prompt-zone">
+            <div className="ai-pro-prompt-title">Try one of these</div>
+            <div className="ai-pro-prompt-chips">
+              {(suggestedQuestions[currentMode] || suggestedQuestions.general).map((question) => (
+                <button key={question} type="button" onClick={() => sendMessage(question)} disabled={sending}>
+                  {question}<span>↗</span>
                 </button>
-              )
-            )}
-
+              ))}
+            </div>
           </div>
 
-
-          {/* Input */}
-
-          <form
-            className="ai-input-area"
-            onSubmit={handleSubmit}
-          >
-
+          <form className="ai-pro-composer" onSubmit={handleSubmit}>
+            <div className="ai-pro-input-icon">✦</div>
             <input
               value={input}
-              onChange={(event) =>
-                setInput(
-                  event.target.value
-                )
+              onChange={(event) => setInput(event.target.value)}
+              placeholder={
+                webMode === "live_web"
+                  ? "Ask WELLsync to research the live web..."
+                  : currentMode === "trainer"
+                  ? "Ask for a movement or workout plan..."
+                  : currentMode === "nutrition"
+                    ? "Ask about meals or nutrition..."
+                    : currentMode === "recovery"
+                      ? "Ask about sleep, recovery, or routines..."
+                      : currentMode === "data_analyst"
+                        ? "Ask me to analyze your wellness data..."
+                        : currentMode === "goals"
+                          ? "Ask me about your goals..."
+                          : "Ask WELLsync anything..."
               }
-              placeholder="Ask WELLsync about your wellness..."
               disabled={sending}
               autoComplete="off"
             />
-
-            <button
-              type="submit"
-              disabled={
-                sending ||
-                !input.trim()
-              }
-            >
-              {sending
-                ? "..."
-                : "↑"}
+            <button type="submit" disabled={sending || !input.trim()} aria-label="Send message">
+              {sending ? "…" : "↑"}
             </button>
-
           </form>
-
-
-          <p className="ai-disclaimer">
-            WELLsync provides general
-            lifestyle guidance and is not
-            a medical diagnosis or emergency
-            service.
-          </p>
-
+          <div className="ai-pro-disclaimer">General wellness guidance only · not a medical diagnosis or emergency service. Live Web uses retrieved public web sources when enabled.</div>
         </section>
 
-
-        {/* =================================================
-            CONTEXT SIDEBAR
-        ================================================= */}
-
-        <aside className="ai-context-panel">
-
-          <div className="ai-context-heading">
-
-            <p className="dashboard-card-label">
-              YOUR CURRENT CONTEXT
-            </p>
-
-            <h2>
-              What I know about today
-            </h2>
-
-          </div>
-
-
-          {/* Score */}
-
-          <div className="ai-score-mini-card">
-
-            <div
-              className="ai-mini-ring"
-              style={{
-                background:
-                  `conic-gradient(
-                    #7c5cff ${
-                      score * 3.6
-                    }deg,
-                    rgba(255,255,255,0.07) ${
-                      score * 3.6
-                    }deg
-                  )`,
-              }}
-            >
-
+        <aside className="ai-pro-sidebar">
+          <section className="ai-pro-side-card ai-pro-score-card">
+            <div className="ai-pro-side-head"><span>YOUR SIGNAL</span><em>LIVE</em></div>
+            <div className="ai-pro-score-layout">
+              <ScoreRing score={score} />
               <div>
-
-                <strong>
-                  {score}
-                </strong>
-
-                <span>
-                  /100
-                </span>
-
+                <strong>{score >= 85 ? "Strong rhythm" : score >= 70 ? "Good momentum" : score >= 50 ? "Room to improve" : "Reset opportunity"}</strong>
+                <p>Current composite wellness signal.</p>
               </div>
-
             </div>
+          </section>
 
-
-            <div>
-
-              <p>
-                Wellness score
-              </p>
-
-              <strong>
-                {score >= 85
-                  ? "Excellent rhythm"
-                  : score >= 70
-                    ? "Good momentum"
-                    : score >= 50
-                      ? "Room to improve"
-                      : "Reset opportunity"}
-              </strong>
-
+          <section className="ai-pro-side-card">
+            <div className="ai-pro-side-head"><span>TODAY</span><em>{normalizedData ? "7 SIGNALS" : "NO DATA"}</em></div>
+            <div className="ai-pro-metrics-grid">
+              <Metric label="Sleep" value={normalizedData?.sleep ?? "—"} suffix="h" accent="purple" />
+              <Metric label="Water" value={normalizedData?.water ?? "—"} suffix=" glasses" accent="cyan" />
+              <Metric label="Steps" value={normalizedData ? normalizedData.steps.toLocaleString() : "—"} accent="green" />
+              <Metric label="Screen" value={normalizedData?.screenTime ?? "—"} suffix="h" accent="orange" />
+              <Metric label="Energy" value={normalizedData?.energy ?? "—"} suffix="/10" accent="pink" />
+              <Metric label="Stress" value={normalizedData?.stress ?? "—"} suffix="/10" accent="blue" />
             </div>
-
-          </div>
-
-
-          {/* Signals */}
-
-          <div className="ai-context-grid">
-
-            <div>
-
-              <span>
-                🌙 Sleep
-              </span>
-
-              <strong>
-                {normalizedData
-                  ? `${normalizedData.sleep}h`
-                  : "—"}
-              </strong>
-
+            <div className="ai-pro-mood-line">
+              <span>{getMoodEmoji(normalizedData?.mood)} Mood</span>
+              <strong>{normalizedData?.mood || "—"}</strong>
             </div>
+          </section>
 
-            <div>
+          <section className="ai-pro-side-card">
+            <div className="ai-pro-side-head"><span>RECENT TREND</span><em>10 POINTS MAX</em></div>
+            <TrendSparkline history={normalizedHistory} />
+          </section>
 
-              <span>
-                💧 Water
-              </span>
-
-              <strong>
-                {normalizedData
-                  ? normalizedData.water
-                  : "—"}
-              </strong>
-
-            </div>
-
-            <div>
-
-              <span>
-                🚶 Activity
-              </span>
-
-              <strong>
-                {normalizedData
-                  ? normalizedData.steps.toLocaleString()
-                  : "—"}
-              </strong>
-
-            </div>
-
-            <div>
-
-              <span>
-                📱 Screen
-              </span>
-
-              <strong>
-                {normalizedData
-                  ? `${normalizedData.screenTime}h`
-                  : "—"}
-              </strong>
-
-            </div>
-
-            <div>
-
-              <span>
-                {getMoodEmoji(
-                  normalizedData?.mood
-                )} Mood
-              </span>
-
-              <strong>
-                {normalizedData?.mood || "—"}
-              </strong>
-
-            </div>
-
-            <div>
-
-              <span>
-                ⚡ Energy
-              </span>
-
-              <strong>
-                {normalizedData
-                  ? `${normalizedData.energy}/10`
-                  : "—"}
-              </strong>
-
-            </div>
-
-            <div>
-
-              <span>
-                🧠 Stress
-              </span>
-
-              <strong>
-                {normalizedData
-                  ? `${normalizedData.stress}/10`
-                  : "—"}
-              </strong>
-
-            </div>
-
-          </div>
-
-
-          {/* Next focus */}
-
-          <div className="ai-priority-card">
-
-            <p className="dashboard-card-label">
-              NEXT BEST FOCUS
-            </p>
-
-            <div className="ai-priority-icon">
-              {priorities[0]?.icon ||
-                "✓"}
-            </div>
-
-            <h3>
-              {priorities[0]?.shortTitle ||
-                "Consistency"}
-            </h3>
-
-            <p>
-              {priorities[0]?.reason ||
-                "Your current tracked signals are around their goals."}
-            </p>
-
-          </div>
-
-
-          {/* Today's Plan */}
-
-          <div className="ai-today-plan-card">
-
-            <div className="ai-today-plan-header">
-
-              <div>
-
-                <p className="dashboard-card-label">
-                  TODAY'S WELLNESS PLAN
-                </p>
-
-                <h3>
-                  {todayPlan.focus.title}
-                </h3>
-
-              </div>
-
-              <span className="ai-plan-focus-icon">
-                {todayPlan.focus.icon}
-              </span>
-
-            </div>
-
-
-            <div className="ai-plan-actions">
-
-              {todayPlan.actions.map(
-                (action, index) => (
-                  <div
-                    className="ai-plan-action"
-                    key={`${action.title}-${index}`}
-                  >
-
-                    <div className="ai-plan-number">
-                      {index + 1}
-                    </div>
-
-                    <div>
-
-                      <strong>
-                        {action.title}
-                      </strong>
-
-                      <p>
-                        {action.description}
-                      </p>
-
-                    </div>
-
+          <section className="ai-pro-side-card">
+            <div className="ai-pro-side-head"><span>FOCUS AREAS</span><em>{priorities.length}</em></div>
+            {priorities.length ? (
+              <div className="ai-pro-focus-list">
+                {priorities.slice(0, 4).map((item) => (
+                  <div className="ai-pro-focus-item" key={item.label}>
+                    <div className="ai-pro-focus-icon">{item.icon}</div>
+                    <div><strong>{item.label}</strong><span>{item.value} · {item.detail}</span></div>
                   </div>
-                )
-              )}
-
-            </div>
-
-          </div>
-
-
-          {/* Goals */}
-
-          {normalizedGoals && (
-            <div className="ai-goals-card">
-
-              <p className="dashboard-card-label">
-                YOUR GOALS
-              </p>
-
-              <div>
-
-                <span>
-                  Sleep
-                </span>
-
-                <strong>
-                  {normalizedGoals.sleep}h
-                </strong>
-
+                ))}
               </div>
+            ) : (
+              <div className="ai-pro-focus-empty">Your current signals are not flagging a specific focus area.</div>
+            )}
+          </section>
 
-              <div>
-
-                <span>
-                  Water
-                </span>
-
-                <strong>
-                  {normalizedGoals.water}
-                  {" "}glasses
-                </strong>
-
-              </div>
-
-              <div>
-
-                <span>
-                  Steps
-                </span>
-
-                <strong>
-                  {normalizedGoals.steps.toLocaleString()}
-                </strong>
-
-              </div>
-
-              <div>
-
-                <span>
-                  Screen time
-                </span>
-
-                <strong>
-                  {normalizedGoals.screenTime}h
-                </strong>
-
-              </div>
-
-            </div>
-          )}
-
-
-          <button
-            type="button"
-            className="ai-refresh-button"
-            onClick={
-              loadWellnessContext
-            }
-            disabled={
-              refreshing ||
-              sending
-            }
-          >
-            {refreshing
-              ? "↻ Refreshing..."
-              : "↻ Refresh wellness context"}
-          </button>
-
+          <section className="ai-pro-side-card ai-pro-goals-card">
+            <div className="ai-pro-side-head"><span>GOALS</span><em>ACTIVE</em></div>
+            <div className="ai-pro-goal-line"><span>Sleep</span><strong>{normalizedGoals?.sleep ?? "—"}h</strong></div>
+            <div className="ai-pro-goal-line"><span>Water</span><strong>{normalizedGoals?.water ?? "—"}</strong></div>
+            <div className="ai-pro-goal-line"><span>Steps</span><strong>{normalizedGoals ? normalizedGoals.steps.toLocaleString() : "—"}</strong></div>
+            <div className="ai-pro-goal-line"><span>Screen cap</span><strong>{normalizedGoals?.screenTime ?? "—"}h</strong></div>
+          </section>
         </aside>
-
-      </div>
-
+      </main>
     </div>
   );
 }
