@@ -210,71 +210,114 @@ function parseAiBrief(text, data, goals) {
 
   if (!text?.trim()) return fallback;
 
-  const clean = text
-    .replace(/```json/gi, "")
-    .replace(/```/g, "")
-    .trim();
-
-  // Preferred format: strict JSON from the dashboard prompt.
-  try {
-    const parsed = JSON.parse(clean);
-    const actions = Array.isArray(parsed.actions)
-      ? parsed.actions.map((item) => String(item).trim()).filter(Boolean).slice(0, 3)
-      : [];
-
-    return {
-      headline: String(parsed.what || fallback.headline).trim(),
-      body: String(parsed.why || fallback.body).trim(),
-      focus: String(parsed.focus || fallback.focus).trim(),
-      why: String(parsed.why || fallback.why).trim(),
-      actions: actions.length ? actions : fallback.actions,
-    };
-  } catch {
-    // Continue with tolerant plain-text parsing.
-  }
-
-  const normalized = clean
+  const cleaned = text
     .replace(/\r/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
-  const extract = (startPattern, endPattern) => {
-    const startMatch = normalized.match(startPattern);
-    if (!startMatch) return "";
+  const extractNumberedPart = (number, nextNumber) => {
+    const currentPattern = new RegExp(
+      `\\(?${number}\\)?\\s*`,
+      "i"
+    );
+    const match = cleaned.match(currentPattern);
 
-    const start = startMatch.index + startMatch[0].length;
-    const remainder = normalized.slice(start);
-    const endMatch = endPattern ? remainder.match(endPattern) : null;
-    const end = endMatch ? endMatch.index : remainder.length;
+    if (!match) return "";
 
-    return remainder.slice(0, end).trim();
+    const startIndex = match.index + match[0].length;
+    let endIndex = cleaned.length;
+
+    if (nextNumber) {
+      const nextPattern = new RegExp(
+        `\\(?${nextNumber}\\)?\\s*`,
+        "i"
+      );
+      const nextMatch = cleaned
+        .slice(startIndex)
+        .match(nextPattern);
+
+      if (nextMatch) {
+        endIndex = startIndex + nextMatch.index;
+      }
+    }
+
+    return cleaned
+      .slice(startIndex, endIndex)
+      .replace(
+        /^(?:what is happening today|why it matters(?: in context)?|three realistic actions(?: for today)?)\s*:?\s*/i,
+        ""
+      )
+      .replace(/^\s*[:\-]\s*/, "")
+      .trim();
   };
 
-  let headline = extract(
-    /(?:^|\s)(?:\(?1\)?\s*)?(?:what is happening today)\s*:?\s*/i,
-    /(?:\(?2\)?\s*)?(?:why it matters(?: in context)?)\s*:?\s*/i
-  );
+  let headline = extractNumberedPart(1, 2);
+  let why = extractNumberedPart(2, 3);
+  let actionText = extractNumberedPart(3, null);
 
-  let why = extract(
-    /(?:^|\s)(?:\(?2\)?\s*)?(?:why it matters(?: in context)?)\s*:?\s*/i,
-    /(?:\(?3\)?\s*)?(?:three realistic actions(?: for today)?)\s*:?\s*/i
-  );
+  // Support unnumbered headings and compact single-line responses.
+  const headings = [
+    {
+      key: "headline",
+      pattern: /what is happening today\s*:?\s*/i,
+    },
+    {
+      key: "why",
+      pattern: /why it matters(?: in context)?\s*:?\s*/i,
+    },
+    {
+      key: "actions",
+      pattern: /three realistic actions(?: for today)?\s*:?\s*/i,
+    },
+  ]
+    .map((item) => {
+      const match = cleaned.match(item.pattern);
+      return match
+        ? {
+            ...item,
+            index: match.index,
+            end: match.index + match[0].length,
+          }
+        : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.index - b.index);
 
-  let actionText = extract(
-    /(?:^|\s)(?:\(?3\)?\s*)?(?:three realistic actions(?: for today)?)\s*:?\s*/i,
-    null
-  );
-
-  if (!headline) {
-    headline = normalized
-      .replace(/^\(?1\)?\s*/i, "")
-      .split(/\(?2\)?\s*why it matters/i)[0]
+  if (headings.length >= 2) {
+    headline = cleaned
+      .slice(headings[0].end, headings[1].index)
+      .replace(/^\s*[:\-]\s*/, "")
       .trim();
+
+    if (headings[2]) {
+      why = cleaned
+        .slice(headings[1].end, headings[2].index)
+        .replace(/^\s*[:\-]\s*/, "")
+        .trim();
+
+      actionText = cleaned
+        .slice(headings[2].end)
+        .replace(/^\s*[:\-]\s*/, "")
+        .trim();
+    } else {
+      why = cleaned
+        .slice(headings[1].end)
+        .replace(/^\s*[:\-]\s*/, "")
+        .trim();
+    }
   }
 
-  const actions = actionText
-    .replace(/^\(?3\)?\s*/i, "")
-    .split(/\s*(?:\d+[.)]|[-•])\s+/)
+  headline = headline
+    .replace(/^\s*\(?1\)?\s*/i, "")
+    .trim();
+
+  why = why
+    .replace(/^\s*\(?2\)?\s*/i, "")
+    .trim();
+
+  const parsedActions = actionText
+    .replace(/^\s*\(?3\)?\s*/i, "")
+    .split(/\s*(?:\d+[.)]\s+|[-•]\s+)/)
     .map((item) => item.trim())
     .filter((item) => item.length > 5)
     .slice(0, 3);
@@ -284,13 +327,14 @@ function parseAiBrief(text, data, goals) {
     body: why || fallback.body,
     focus: fallback.focus,
     why: why || fallback.why,
-    actions: actions.length ? actions : fallback.actions,
+    actions: parsedActions.length ? parsedActions : fallback.actions,
   };
 }
+
 async function fetchAiBrief({ data, goals, history }) {
   const requestBody = {
     message:
-      'Create the dashboard AI wellness brief from my current WELLsync data, goals and recent history. Return ONLY valid JSON with this exact shape: {"what":"one concise sentence about what is happening today","why":"one concise sentence explaining why it matters in context","focus":"one short focus label","actions":["action 1","action 2","action 3"]}. Do not use markdown, code fences, numbering, or extra text. Keep it practical, non-medical, and grounded only in the supplied personal data.',
+      "Create a concise AI wellness brief for my dashboard. Use my current wellness data, goals and recent history. Return exactly three short parts in plain text: (1) what is happening today, (2) why it matters in context, (3) three realistic actions for today. Keep it practical, non-medical, and do not restate every number.",
     wellness_data: data,
     goals,
     history: history.slice(-7),
@@ -349,8 +393,6 @@ function Icon({ name, size = 18, stroke = 1.8 }) {
       </>
     ),
     energy: <path d="m13 2-8 11h6l-1 9 8-11h-6l1-9Z" />,
-    heart: <path d="M20.8 8.8c0 5.7-8.8 10.2-8.8 10.2S3.2 14.5 3.2 8.8A4.5 4.5 0 0 1 12 6.6a4.5 4.5 0 0 1 8.8 2.2Z" />,
-    calories: <><path d="M13.2 3.2c.8 3.4-1.4 4.8-2.6 6.2-1.1 1.2-1.3 2.6-.2 4.1.2-2.2 1.8-2.7 2.9-4.1 1.4 1.5 2.4 3.1 2.4 5.1A5.7 5.7 0 0 1 10 20a6 6 0 0 1-5.8-6.2c0-3.4 2.1-5.8 4.7-8.2-.2 2.7.4 3.8 1.2 4.5.5-2.1 1.8-4.1 3.1-6.9Z" /></>,
     stress: (
       <>
         <path d="M4 13c2-5 4.2 5 6.3 0 2-5 4.2 5 6.3 0 1.1-2.7 2.1-.7 3.4.6" />
@@ -654,7 +696,7 @@ export default function Dashboard({
   useEffect(() => {
     if (!current) return;
 
-    const cacheKey = `wellsync_dashboard_brief_v3_${new Date().toISOString().slice(0, 10)}_${score}_${JSON.stringify(goals)}`;
+    const cacheKey = `wellsync_dashboard_brief_${new Date().toISOString().slice(0, 10)}_${score}_${JSON.stringify(goals)}`;
 
     try {
       const cached = sessionStorage.getItem(cacheKey);
@@ -967,24 +1009,24 @@ export default function Dashboard({
                   tone="cyan"
                 />
                 <MetricCard
-                  icon="heart"
-                  label="Heart rate"
-                  value="—"
-                  unit=""
-                  progress={0}
-                  target="Connect device"
-                  helper="Wearable data"
-                  tone="rose"
+                  icon="screen"
+                  label="Screen"
+                  value={current.screenTime.toFixed(1)}
+                  unit="h"
+                  progress={100 - Math.max(current.screenTime - goals.screenTime, 0) * 15}
+                  target={`Target ≤ ${goals.screenTime.toFixed(1)}h`}
+                  helper="Digital balance"
+                  tone="orange"
                 />
                 <MetricCard
-                  icon="calories"
-                  label="Calories"
-                  value="—"
-                  unit=""
-                  progress={0}
-                  target="Connect device"
-                  helper="Wearable data"
-                  tone="orange"
+                  icon="energy"
+                  label="Energy"
+                  value={current.energy}
+                  unit="/10"
+                  progress={current.energy * 10}
+                  target="Scale 0–10"
+                  helper="Capacity"
+                  tone="pink"
                 />
               </div>
             </div>
