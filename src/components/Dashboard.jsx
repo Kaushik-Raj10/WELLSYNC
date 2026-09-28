@@ -172,7 +172,7 @@ async function fetchAiBrief(data, goals, history) {
   };
 
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 12000);
+  const timeout = window.setTimeout(() => controller.abort(), 30000);
 
   try {
     const response = await fetch(`${API_URL}/ai/chat`, {

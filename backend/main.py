@@ -1109,6 +1109,44 @@ IMPORTANT:
 # ROUTES
 # =========================================================
 
+def build_capacity_fallback_response(
+    request: AIChatRequest,
+) -> str:
+    """
+    Graceful local response when Gemini is temporarily unavailable.
+    Keeps the WELLsync chat usable during provider-side capacity spikes.
+    """
+    data = request.wellness_data
+
+    if data is None:
+        return (
+            "WELLsync AI is temporarily busy because the AI service is "
+            "experiencing high demand. Your dashboard is still working normally. "
+            "Please try your message again in a moment."
+        )
+
+    score = calculate_wellness_score(data)
+
+    gaps = analyze_current_data(
+        data,
+        request.goals,
+    ).get("goal_gaps", [])
+
+    focus = ""
+    if gaps:
+        areas = [str(item.get("area", "")).replace("_", " ") for item in gaps[:2]]
+        if areas:
+            focus = f" Your current areas to focus on are {', '.join(areas)}."
+
+    return (
+        "WELLsync AI is temporarily busy because the AI service is "
+        "experiencing high demand. Your wellness data is still available, "
+        f"and your current wellness score is {score}/100.{focus} "
+        "Please try your message again in a moment for the full AI response."
+    )
+
+
+
 @app.get("/")
 def root():
     return {
@@ -1195,14 +1233,42 @@ def ai_chat(
         print(f"[WELLsync AI] {type(error).__name__}: {error}")
 
         message = str(error).lower()
-        if "429" in message or "resource_exhausted" in message or "rate limit" in message:
-            detail = "WELLsync AI is temporarily rate-limited. Please wait a moment and try again."
-        elif "tavily" in message and ("401" in message or "403" in message or "api key" in message):
-            detail = "WELLsync live web access needs a valid Tavily API key. Check TAVILY_API_KEY in backend/.env."
+
+        # Gemini can temporarily return 503/high-demand responses even when
+        # the API key and backend are configured correctly. Do not expose the
+        # raw provider error to the frontend; return a graceful WELLsync response.
+        if is_retryable_capacity_error(error):
+            return {
+                "response": build_capacity_fallback_response(request),
+                "source": "local-fallback",
+                "model": None,
+                "mode": request.mode or "general",
+                "web_mode": request.web_mode,
+                "history_points": len(request.history),
+                "agent": False,
+                "tools_available": [],
+                "web_grounded": False,
+                "web_search_queries": [],
+                "web_sources": [],
+                "temporary_ai_unavailable": True,
+            }
+
+        if "tavily" in message and (
+            "401" in message
+            or "403" in message
+            or "api key" in message
+        ):
+            detail = (
+                "WELLsync live web access needs a valid Tavily API key. "
+                "Check TAVILY_API_KEY in backend/.env."
+            )
         else:
-            detail = "WELLsync AI could not complete that request. Check the backend terminal for the technical error."
+            detail = (
+                "WELLsync AI could not complete that request. "
+                "Check the backend terminal for the technical error."
+            )
 
         raise HTTPException(
-            status_code=503 if "429" in message or "resource_exhausted" in message else 502,
+            status_code=502,
             detail=detail,
         )
