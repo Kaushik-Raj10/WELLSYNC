@@ -13,6 +13,7 @@ import {
 } from "../utils/wellnessData";
 
 import { calculateWellnessScore } from "../utils/wellnessScore";
+import { getCurrentUserAgeProfile } from "../utils/ageUtils";
 import "./AICompanion.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
@@ -342,13 +343,15 @@ export default function AICompanion() {
         content: message.content,
       }));
 
+      const profile = await getCurrentUserAgeProfile();
+
       const requestBody = {
         message: cleanText,
         wellness_data: normalizedData,
         goals: normalizedGoals,
         history: currentMode === "data_analyst" ? normalizedHistory.slice(-30) : normalizedHistory.slice(-7),
         device_data: {},
-        profile: {},
+        profile,
         mode: currentMode,
         web_mode: webMode,
         conversation,

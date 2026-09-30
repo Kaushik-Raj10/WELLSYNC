@@ -1,0 +1,142 @@
+.age-setup-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(143, 124, 255, 0.22), transparent 34%),
+    radial-gradient(circle at 80% 80%, rgba(85, 231, 209, 0.12), transparent 34%),
+    #080a12;
+}
+
+.age-setup-card {
+  width: min(100%, 500px);
+  padding: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 28px;
+  background: rgba(14, 17, 28, 0.78);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.age-setup-mark {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  background: linear-gradient(135deg, #8f7cff, #55e7d1);
+  color: white;
+  font-weight: 900;
+  font-size: 20px;
+  margin-bottom: 28px;
+}
+
+.age-setup-kicker {
+  color: #8f7cff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.age-setup-card h1 {
+  margin: 10px 0 12px;
+  color: #f5f7fb;
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.05;
+}
+
+.age-setup-card > p {
+  margin: 0 0 28px;
+  color: #979daf;
+  line-height: 1.65;
+}
+
+.age-setup-error {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border-radius: 13px;
+  background: rgba(255, 95, 122, 0.1);
+  border: 1px solid rgba(255, 95, 122, 0.2);
+  color: #ff9bb0;
+  font-size: 0.86rem;
+}
+
+.age-setup-card form {
+  display: grid;
+  gap: 20px;
+}
+
+.age-setup-card label {
+  display: grid;
+  gap: 8px;
+}
+
+.age-setup-card label > span {
+  color: #dfe3ec;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.age-setup-input-wrap {
+  position: relative;
+}
+
+.age-setup-input-wrap input {
+  width: 100%;
+  padding: 15px 70px 15px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  background: rgba(255, 255, 255, 0.045);
+  color: #f5f7fb;
+  font-size: 1rem;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.age-setup-input-wrap input:focus {
+  border-color: rgba(143, 124, 255, 0.7);
+  box-shadow: 0 0 0 3px rgba(143, 124, 255, 0.1);
+}
+
+.age-setup-input-wrap small {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #858b9c;
+}
+
+.age-setup-card form button {
+  border: 0;
+  border-radius: 14px;
+  padding: 15px 17px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #8f7cff, #6f64d9);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.age-setup-card form button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.age-setup-note {
+  display: block;
+  margin-top: 22px;
+  color: #707789;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 560px) {
+  .age-setup-card {
+    padding: 30px 24px;
+  }
+}

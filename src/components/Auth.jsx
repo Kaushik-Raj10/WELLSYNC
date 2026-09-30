@@ -15,9 +15,20 @@ function getInitials(name) {
   return (parts[0] || "W").slice(0, 2).toUpperCase();
 }
 
+function normalizeAge(value) {
+  const age = Number(value);
+  return Number.isInteger(age) ? age : null;
+}
+
+function isValidAge(value) {
+  const age = normalizeAge(value);
+  return age !== null && age >= 13 && age <= 120;
+}
+
 export default function Auth() {
   const [mode, setMode] = useState("signin");
   const [name, setName] = useState("");
+  const [age, setAge] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -26,7 +37,6 @@ export default function Auth() {
   const [error, setError] = useState("");
 
   const isSignUp = mode === "signup";
-
   const title = useMemo(
     () => (isSignUp ? "Create your wellness space." : "Welcome back."),
     [isSignUp]
@@ -51,9 +61,15 @@ export default function Auth() {
 
     const cleanEmail = email.trim().toLowerCase();
     const cleanName = name.trim();
+    const numericAge = normalizeAge(age);
 
-    if (!cleanEmail || !password) {
-      setError("Enter your email and password.");
+    if (!cleanEmail || !password || !age) {
+      setError("Enter your age, email and password.");
+      return;
+    }
+
+    if (!isValidAge(age)) {
+      setError("Enter a valid age between 13 and 120.");
       return;
     }
 
@@ -77,6 +93,7 @@ export default function Auth() {
           options: {
             data: {
               full_name: cleanName,
+              age: numericAge,
             },
           },
         });
@@ -91,7 +108,7 @@ export default function Auth() {
           );
         }
       } else {
-        const { error: signInError } =
+        const { data, error: signInError } =
           await supabase.auth.signInWithPassword({
             email: cleanEmail,
             password,
@@ -99,17 +116,38 @@ export default function Auth() {
 
         if (signInError) throw signInError;
 
+        const storedAge = normalizeAge(data?.user?.user_metadata?.age);
+
+        if (storedAge === null) {
+          const { error: updateError } = await supabase.auth.updateUser({
+            data: {
+              ...(data?.user?.user_metadata || {}),
+              age: numericAge,
+            },
+          });
+
+          if (updateError) throw updateError;
+        } else if (storedAge !== numericAge) {
+          await supabase.auth.signOut();
+          throw new Error(
+            "The age does not match the age saved on this account."
+          );
+        }
+
         setNotice("Signed in. Opening your wellness space…");
       }
     } catch (authError) {
       console.error("Authentication error:", authError);
 
       const message = String(authError?.message || "");
+      const lower = message.toLowerCase();
 
-      if (message.toLowerCase().includes("invalid login credentials")) {
+      if (lower.includes("invalid login credentials")) {
         setError("The email or password is incorrect.");
-      } else if (message.toLowerCase().includes("user already registered")) {
+      } else if (lower.includes("user already registered")) {
         setError("That email already has a WELLsync account. Sign in instead.");
+      } else if (lower.includes("age does not match")) {
+        setError(message);
       } else if (message) {
         setError(message);
       } else {
@@ -259,6 +297,21 @@ export default function Auth() {
             )}
 
             <label className="auth-field">
+              <span>Your age</span>
+              <input
+                type="number"
+                min="13"
+                max="120"
+                step="1"
+                inputMode="numeric"
+                value={age}
+                onChange={(event) => setAge(event.target.value)}
+                placeholder="Enter your age"
+                autoComplete="off"
+              />
+            </label>
+
+            <label className="auth-field">
               <span>Email address</span>
               <input
                 type="email"
@@ -313,8 +366,9 @@ export default function Auth() {
             <div>
               <strong>Built around your context.</strong>
               <p>
-                Your authenticated account keeps your WELLsync experience
-                connected across check-ins, goals, insights and AI.
+                Your age helps WELLsync keep its wellness guidance appropriate
+                to your life stage while your authenticated account keeps your
+                experience connected across check-ins, goals, insights and AI.
               </p>
             </div>
           </div>

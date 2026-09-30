@@ -419,6 +419,74 @@ def summarize_history(
 # SYSTEM PROMPT
 # =========================================================
 
+def normalize_age(value: Any) -> int | None:
+    try:
+        age = int(value)
+    except (TypeError, ValueError):
+        return None
+
+    if age < 13 or age > 120:
+        return None
+
+    return age
+
+
+def get_age_group(age: int | None) -> str:
+    if age is None:
+        return "unknown"
+    if age < 18:
+        return "teen"
+    if age < 26:
+        return "young_adult"
+    if age < 40:
+        return "adult"
+    if age < 60:
+        return "midlife_adult"
+    return "older_adult"
+
+
+def normalize_profile(profile: dict[str, Any] | None) -> dict[str, Any]:
+    profile = profile or {}
+    age = normalize_age(profile.get("age"))
+
+    if age is None:
+        return {}
+
+    return {
+        "age": age,
+        "age_group": get_age_group(age),
+    }
+
+
+def build_age_guidance(profile: dict[str, Any] | None) -> str:
+    normalized = normalize_profile(profile)
+    age = normalized.get("age")
+    age_group = normalized.get("age_group")
+
+    if age is None:
+        return (
+            "Age context is unavailable. Do not assume a life stage or make "
+            "age-specific claims."
+        )
+
+    if age_group == "teen":
+        return (
+            f"The user is {age} years old and under 18. Keep wellness guidance "
+            "age-appropriate and supportive. Do not provide restrictive diets, "
+            "calorie-cutting targets, weight-loss plans, appearance-focused advice, "
+            "extreme exercise targets, dangerous challenges, or adult fitness and "
+            "nutrition prescriptions. Prefer balanced meals, adequate rest, hydration, "
+            "enjoyable movement, sustainable routines, and trusted-adult or qualified "
+            "professional support when a health concern needs individualized care."
+        )
+
+    return (
+        f"The user is {age} years old ({age_group}). Use age context when it is "
+        "relevant, but do not infer medical conditions or needs solely from age. "
+        "Keep recommendations practical and sustainable."
+    )
+
+
 def build_system_instruction(
     request: AIChatRequest,
 ) -> str:
@@ -460,10 +528,15 @@ def build_system_instruction(
         mode_instructions["general"],
     )
 
+    age_guidance = build_age_guidance(request.profile)
+
     return f"""
 You are WELLsync Intelligence: a capable, warm, context-aware AI wellness coach.
 
 {role}
+
+AGE-AWARE PERSONALIZATION:
+{age_guidance}
 
 You are NOT a canned-response bot.
 Do not simply repeat the user's dashboard numbers.
@@ -964,7 +1037,7 @@ def run_gemini(
         "current_wellness": current,
         "history_summary": history,
         "device_data": request.device_data or {},
-        "profile": request.profile or {},
+        "profile": normalize_profile(request.profile),
     }
 
     prompt = f"""
@@ -1109,44 +1182,6 @@ IMPORTANT:
 # ROUTES
 # =========================================================
 
-def build_capacity_fallback_response(
-    request: AIChatRequest,
-) -> str:
-    """
-    Graceful local response when Gemini is temporarily unavailable.
-    Keeps the WELLsync chat usable during provider-side capacity spikes.
-    """
-    data = request.wellness_data
-
-    if data is None:
-        return (
-            "WELLsync AI is temporarily busy because the AI service is "
-            "experiencing high demand. Your dashboard is still working normally. "
-            "Please try your message again in a moment."
-        )
-
-    score = calculate_wellness_score(data)
-
-    gaps = analyze_current_data(
-        data,
-        request.goals,
-    ).get("goal_gaps", [])
-
-    focus = ""
-    if gaps:
-        areas = [str(item.get("area", "")).replace("_", " ") for item in gaps[:2]]
-        if areas:
-            focus = f" Your current areas to focus on are {', '.join(areas)}."
-
-    return (
-        "WELLsync AI is temporarily busy because the AI service is "
-        "experiencing high demand. Your wellness data is still available, "
-        f"and your current wellness score is {score}/100.{focus} "
-        "Please try your message again in a moment for the full AI response."
-    )
-
-
-
 @app.get("/")
 def root():
     return {
@@ -1233,42 +1268,14 @@ def ai_chat(
         print(f"[WELLsync AI] {type(error).__name__}: {error}")
 
         message = str(error).lower()
-
-        # Gemini can temporarily return 503/high-demand responses even when
-        # the API key and backend are configured correctly. Do not expose the
-        # raw provider error to the frontend; return a graceful WELLsync response.
-        if is_retryable_capacity_error(error):
-            return {
-                "response": build_capacity_fallback_response(request),
-                "source": "local-fallback",
-                "model": None,
-                "mode": request.mode or "general",
-                "web_mode": request.web_mode,
-                "history_points": len(request.history),
-                "agent": False,
-                "tools_available": [],
-                "web_grounded": False,
-                "web_search_queries": [],
-                "web_sources": [],
-                "temporary_ai_unavailable": True,
-            }
-
-        if "tavily" in message and (
-            "401" in message
-            or "403" in message
-            or "api key" in message
-        ):
-            detail = (
-                "WELLsync live web access needs a valid Tavily API key. "
-                "Check TAVILY_API_KEY in backend/.env."
-            )
+        if "429" in message or "resource_exhausted" in message or "rate limit" in message:
+            detail = "WELLsync AI is temporarily rate-limited. Please wait a moment and try again."
+        elif "tavily" in message and ("401" in message or "403" in message or "api key" in message):
+            detail = "WELLsync live web access needs a valid Tavily API key. Check TAVILY_API_KEY in backend/.env."
         else:
-            detail = (
-                "WELLsync AI could not complete that request. "
-                "Check the backend terminal for the technical error."
-            )
+            detail = "WELLsync AI could not complete that request. Check the backend terminal for the technical error."
 
         raise HTTPException(
-            status_code=502,
+            status_code=503 if "429" in message or "resource_exhausted" in message else 502,
             detail=detail,
         )

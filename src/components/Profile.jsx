@@ -49,6 +49,7 @@ function metricLabel(key) {
 export default function Profile({ onNavigate }) {
   const [user, setUser] = useState(null);
   const [name, setName] = useState("");
+  const [age, setAge] = useState("");
   const [prefs, setPrefs] = useState(readLocalPrefs);
   const [goals, setGoals] = useState(() => getGoals());
   const [savingProfile, setSavingProfile] = useState(false);
@@ -78,6 +79,13 @@ export default function Profile({ onNavigate }) {
       const metadata = currentUser.user_metadata || {};
       setUser(currentUser);
       setName(metadata.full_name || "");
+      setAge(
+        metadata.age !== undefined &&
+        metadata.age !== null &&
+        metadata.age !== ""
+          ? String(metadata.age)
+          : ""
+      );
     }
 
     loadProfile();
@@ -107,10 +115,24 @@ export default function Profile({ onNavigate }) {
     setMessage("");
     setError("");
 
+    const numericAge = Number(age);
+
+    if (
+      !Number.isInteger(numericAge) ||
+      numericAge < 13 ||
+      numericAge > 120
+    ) {
+      setSavingProfile(false);
+      setError("Please enter a valid age between 13 and 120.");
+      return;
+    }
+
     try {
       const { data, error } = await supabase.auth.updateUser({
         data: {
+          ...(user?.user_metadata || {}),
           full_name: name.trim(),
+          age: numericAge,
         },
       });
 
@@ -243,6 +265,9 @@ export default function Profile({ onNavigate }) {
           <div>
             <strong>{name || "WELLsync user"}</strong>
             <span>{user?.email || "Account email"}</span>
+            <small className="profile-identity-age">
+              {age ? `${age} years old` : "Age not set"}
+            </small>
           </div>
         </div>
       </header>
@@ -282,6 +307,26 @@ export default function Profile({ onNavigate }) {
           </div>
 
           <div className="profile-field">
+            <label htmlFor="profile-age">Age</label>
+            <input
+              id="profile-age"
+              type="number"
+              min="13"
+              max="120"
+              step="1"
+              inputMode="numeric"
+              value={age}
+              onChange={(event) => {
+                setAge(event.target.value);
+                setMessage("");
+                setError("");
+              }}
+              placeholder="Your age"
+              autoComplete="off"
+            />
+          </div>
+
+          <div className="profile-field">
             <label>Email</label>
             <div className="profile-readonly">
               <span>{user?.email || "—"}</span>
@@ -310,6 +355,7 @@ export default function Profile({ onNavigate }) {
 
           <div className="profile-context-list">
             {[
+              ["Age", age ? `${age}` : null, "years"],
               ["Sleep", wellnessData?.sleep, "h"],
               ["Hydration", wellnessData?.water, "glasses"],
               ["Movement", wellnessData?.steps?.toLocaleString("en-IN"), "steps"],

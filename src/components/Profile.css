@@ -98,6 +98,16 @@
   text-overflow: ellipsis;
 }
 
+.profile-identity-age {
+  display: block;
+  overflow: hidden;
+  color: #8f98aa;
+  font-size: .57rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .profile-toast {
   margin-bottom: 14px;
   padding: 11px 14px;

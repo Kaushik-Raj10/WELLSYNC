@@ -56,3 +56,192 @@
 @media(max-width:1000px){.dash2-command{padding-left:22px;padding-right:22px}.dash2-command-right .dash2-profile small{display:none}.dash2-main,.dash2-bottom-grid{padding-left:22px;padding-right:22px}.dash2-main{grid-template-columns:1fr}.dash2-right{order:-1}.dash2-coach{min-height:0}.dash2-coach-buttons{grid-template-columns:repeat(2,1fr)}.dash2-bottom-grid{grid-template-columns:1fr}.dash2-background{height:500px}.dash2-score-card{width:350px;flex-basis:350px;min-width:350px}}
 @media(max-width:700px){.dash2-command{padding:16px 14px 0;flex-direction:column;align-items:stretch}.dash2-search{width:100%}.dash2-command-right{width:100%;justify-content:space-between}.dash2-date{font-size:.68rem}.dash2-welcome{padding:38px 14px 24px;align-items:flex-start}.dash2-welcome h1{font-size:2.65rem}.dash2-signal{display:none}.dash2-main,.dash2-bottom-grid{padding-left:14px;padding-right:14px}.dash2-overview,.dash2-brief,.dash2-coach,.dash2-quick,.dash2-goals{padding:18px}.dash2-overview-head{align-items:flex-start}.dash2-overview-status{gap:7px}.dash2-overview-date{font-size:.56rem}.dash2-overview-carousel{margin-top:14px}.dash2-overview-grid{padding-bottom:9px}.dash2-score-card{width:300px;flex-basis:300px;min-width:300px;min-height:180px}.dash2-score-ring{width:118px;height:118px;flex-basis:118px}.dash2-score-ring strong{font-size:2.6rem}.dash2-metric{width:180px;flex-basis:180px;min-width:180px;min-height:165px}.dash2-overview-nav{width:34px;height:34px;font-size:1.3rem}.dash2-overview-nav-left{left:5px}.dash2-overview-nav-right{right:5px}.dash2-brief-grid{grid-template-columns:1fr}.dash2-goals-list{grid-template-columns:1fr}.dash2-quick-grid{grid-template-columns:1fr}.dash2-background{height:450px}.dash2-background-fade{background:linear-gradient(180deg,rgba(5,7,13,.08),rgba(5,7,13,.55) 58%,#070a12 100%)}}
 @media(prefers-reduced-motion:reduce){.dash2-photo,.dash2-ai-orb{animation:none}.dash2-photo{transition:none}}
+/* -------------------------------------------------------
+   WELLsync Seasonal Ambience
+   Additive feature only
+------------------------------------------------------- */
+
+.wellsync-ambient-control {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 20;
+
+  display: flex;
+  align-items: center;
+  gap: 11px;
+
+  min-width: 190px;
+  padding: 10px 13px;
+
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+
+  background: rgba(10, 13, 22, 0.62);
+  color: #f6f7fb;
+
+  box-shadow:
+    0 16px 45px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+
+  cursor: pointer;
+
+  transition:
+    transform 0.25s ease,
+    background 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.wellsync-ambient-control:hover {
+  transform: translateY(-2px);
+  background: rgba(15, 18, 30, 0.76);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 20px 55px rgba(0, 0, 0, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.wellsync-ambient-control:focus-visible {
+  outline: 2px solid rgba(141, 121, 255, 0.9);
+  outline-offset: 3px;
+}
+
+.wellsync-ambient-icon {
+  width: 35px;
+  height: 35px;
+
+  flex: 0 0 auto;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 12px;
+
+  background: rgba(141, 121, 255, 0.14);
+  color: #b9adff;
+
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.wellsync-ambient-copy {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.wellsync-ambient-copy strong {
+  font-size: 0.76rem;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.wellsync-ambient-copy small {
+  margin-top: 3px;
+
+  max-width: 105px;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  color: #8e95a8;
+
+  font-size: 0.58rem;
+  line-height: 1.2;
+}
+
+.wellsync-ambient-pulse {
+  margin-left: auto;
+
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+
+  width: 18px;
+  height: 18px;
+}
+
+.wellsync-ambient-pulse i {
+  display: block;
+
+  width: 3px;
+  height: 6px;
+
+  border-radius: 999px;
+
+  background: #8d79ff;
+
+  opacity: 0.32;
+
+  transform-origin: bottom;
+}
+
+.wellsync-ambient-pulse i:nth-child(1) {
+  animation: wellsyncAmbientBar 1.1s ease-in-out infinite;
+}
+
+.wellsync-ambient-pulse i:nth-child(2) {
+  animation: wellsyncAmbientBar 0.8s ease-in-out infinite;
+  animation-delay: -0.25s;
+}
+
+.wellsync-ambient-pulse i:nth-child(3) {
+  animation: wellsyncAmbientBar 1s ease-in-out infinite;
+  animation-delay: -0.45s;
+}
+
+.wellsync-ambient-pulse:not(.active) i {
+  animation: none;
+  opacity: 0.2;
+}
+
+.wellsync-ambient-control.is-playing
+  .wellsync-ambient-icon {
+  background: rgba(85, 223, 209, 0.12);
+  color: #78e7db;
+}
+
+@keyframes wellsyncAmbientBar {
+  0%,
+  100% {
+    height: 5px;
+    opacity: 0.35;
+  }
+
+  50% {
+    height: 17px;
+    opacity: 0.9;
+  }
+}
+
+@media (max-width: 700px) {
+  .wellsync-ambient-control {
+    right: 14px;
+    bottom: 78px;
+
+    min-width: 0;
+
+    padding: 9px 11px;
+
+    border-radius: 16px;
+  }
+
+  .wellsync-ambient-copy small {
+    max-width: 90px;
+  }
+
+  .wellsync-ambient-icon {
+    width: 32px;
+    height: 32px;
+  }
+}
