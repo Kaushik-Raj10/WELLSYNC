@@ -1,0 +1,371 @@
+.wellsync-missions-card {
+  margin-top: 26px;
+  padding: 26px;
+  position: relative;
+  overflow: hidden;
+}
+
+.wellsync-missions-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 8% 10%, rgba(143, 124, 255, 0.14), transparent 34%),
+    radial-gradient(circle at 92% 12%, rgba(85, 231, 209, 0.09), transparent 30%);
+}
+
+.wellsync-missions-header,
+.wellsync-mission-grid,
+.wellsync-missions-footer {
+  position: relative;
+  z-index: 1;
+}
+
+.wellsync-missions-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 22px;
+  margin-bottom: 20px;
+}
+
+.wellsync-missions-eyebrow,
+.wellsync-mission-label,
+.wellsync-outcome-label span {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  opacity: 0.72;
+}
+
+.wellsync-missions-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wellsync-missions-eyebrow span {
+  font-size: 12px;
+}
+
+.wellsync-missions-header h2 {
+  margin: 8px 0 8px;
+}
+
+.wellsync-missions-header p {
+  margin: 0;
+  max-width: 780px;
+  line-height: 1.62;
+  opacity: 0.7;
+}
+
+.wellsync-mission-status {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 9px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.wellsync-mission-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.75fr);
+  gap: 16px;
+}
+
+.wellsync-mission-main,
+.wellsync-mission-outcome {
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.035);
+  box-sizing: border-box;
+}
+
+.wellsync-mission-main {
+  padding: 20px;
+}
+
+.wellsync-mission-main h3 {
+  margin: 8px 0 16px;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.wellsync-mission-context {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.wellsync-mission-context > div {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.wellsync-mission-context span {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  opacity: 0.5;
+}
+
+.wellsync-mission-context strong {
+  display: block;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.wellsync-mission-tasks {
+  display: grid;
+  gap: 9px;
+}
+
+.wellsync-mission-task {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 12px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.028);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wellsync-mission-task:hover {
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.wellsync-mission-task.checked {
+  opacity: 0.68;
+}
+
+.wellsync-task-box {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.wellsync-mission-task.checked .wellsync-task-box {
+  background: rgba(143, 124, 255, 0.18);
+  border-color: rgba(143, 124, 255, 0.42);
+}
+
+.wellsync-mission-task > span:last-child {
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 0.84;
+}
+
+.wellsync-mission-actions {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.wellsync-mission-primary,
+.wellsync-mission-secondary {
+  appearance: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.wellsync-mission-primary {
+  padding: 11px 13px;
+  border-radius: 10px;
+  background: rgba(143, 124, 255, 0.16);
+  border: 1px solid rgba(143, 124, 255, 0.26);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.wellsync-mission-primary:hover {
+  background: rgba(143, 124, 255, 0.22);
+}
+
+.wellsync-mission-primary span {
+  margin-left: 7px;
+}
+
+.wellsync-mission-secondary {
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.62;
+}
+
+.wellsync-mission-secondary:hover {
+  opacity: 0.85;
+}
+
+.wellsync-mission-outcome {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.wellsync-outcome-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.wellsync-outcome-label strong {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  opacity: 0.58;
+}
+
+.wellsync-outcome-success {
+  margin-top: 22px;
+  padding: 14px;
+  border-radius: 13px;
+  background: rgba(85, 231, 209, 0.07);
+  border: 1px solid rgba(85, 231, 209, 0.14);
+}
+
+.wellsync-outcome-success span {
+  display: block;
+  font-size: 9px;
+  opacity: 0.58;
+}
+
+.wellsync-outcome-success strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.wellsync-outcome-success p {
+  margin: 7px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: 0.68;
+}
+
+.wellsync-outcome-learning {
+  margin-top: auto;
+  padding-top: 15px;
+}
+
+.wellsync-outcome-learning span {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  opacity: 0.48;
+}
+
+.wellsync-outcome-learning p {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.48;
+  opacity: 0.56;
+}
+
+.wellsync-outcome-waiting {
+  margin: auto 0;
+  text-align: center;
+}
+
+.wellsync-outcome-orbit {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 14px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(143, 124, 255, 0.22);
+  background: rgba(143, 124, 255, 0.07);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.wellsync-outcome-waiting strong {
+  display: block;
+  font-size: 14px;
+}
+
+.wellsync-outcome-waiting p {
+  max-width: 310px;
+  margin: 8px auto 0;
+  font-size: 11px;
+  line-height: 1.55;
+  opacity: 0.6;
+}
+
+.wellsync-missions-footer {
+  margin-top: 17px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  font-size: 9px;
+  line-height: 1.45;
+  opacity: 0.5;
+}
+
+.wellsync-missions-footer span:last-child {
+  text-align: right;
+  letter-spacing: 0.06em;
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .wellsync-mission-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .wellsync-missions-card {
+    padding: 19px;
+  }
+
+  .wellsync-missions-header {
+    flex-direction: column;
+  }
+
+  .wellsync-mission-context {
+    grid-template-columns: 1fr;
+  }
+
+  .wellsync-missions-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .wellsync-missions-footer span:last-child {
+    text-align: left;
+  }
+}

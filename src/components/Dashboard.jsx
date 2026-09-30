@@ -6,6 +6,8 @@ import { supabase } from "../lib/supabase";
 import "./Dashboard.css";
 import SeasonalAmbience from "./SeasonalAmbience";
 import DailyRecommendations from "./DailyRecommendations";
+import PersonalPatternEngine from "./PersonalPatternEngine";
+import WELLsyncMissions from "./WELLsyncMissions";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
@@ -1317,6 +1319,19 @@ export default function Dashboard({
       </main>
 
       <DailyRecommendations
+        data={current}
+        goals={goals}
+        history={history}
+        age={userAge}
+        onNavigate={onNavigate}
+      />
+
+      <PersonalPatternEngine
+        history={history}
+        goals={goals}
+        onNavigate={onNavigate}
+      />
+      <WELLsyncMissions
         data={current}
         goals={goals}
         history={history}
