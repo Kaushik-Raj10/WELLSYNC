@@ -5,6 +5,7 @@ import { getCloudCheckins, getCloudGoals } from "../utils/supabaseData";
 import { supabase } from "../lib/supabase";
 import "./Dashboard.css";
 import SeasonalAmbience from "./SeasonalAmbience";
+import DailyRecommendations from "./DailyRecommendations";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
@@ -86,6 +87,31 @@ function normalizeHistory(rows) {
 
 function clamp(value, min = 0, max = 100) {
   return Math.min(Math.max(Number(value) || 0, min), max);
+}
+
+function getDashboardAgeProfile(age) {
+  const numericAge = Number(age);
+
+  if (!Number.isInteger(numericAge) || numericAge < 13 || numericAge > 120) {
+    return {};
+  }
+
+  let ageGroup = "older_adult";
+
+  if (numericAge < 18) {
+    ageGroup = "teen";
+  } else if (numericAge < 26) {
+    ageGroup = "young_adult";
+  } else if (numericAge < 40) {
+    ageGroup = "adult";
+  } else if (numericAge < 60) {
+    ageGroup = "midlife_adult";
+  }
+
+  return {
+    age: numericAge,
+    age_group: ageGroup,
+  };
 }
 
 function Icon({ name, size = 18, stroke = 1.8 }) {
@@ -303,7 +329,7 @@ function parseBrief(text, data, goals) {
   };
 }
 
-async function fetchAiBrief(data, goals, history) {
+async function fetchAiBrief(data, goals, history, age) {
   const body = {
     message:
       "Create a concise AI wellness brief for my dashboard. Return exactly three short numbered parts in plain text: (1) what is happening today, (2) why it matters in context, (3) three realistic actions for today. Keep it practical, non-medical, and do not restate every number.",
@@ -311,7 +337,7 @@ async function fetchAiBrief(data, goals, history) {
     goals,
     history: history.slice(-7),
     device_data: {},
-    profile: {},
+    profile: getDashboardAgeProfile(age),
     mode: "general",
     web_mode: "personal_data",
     conversation: [],
@@ -458,6 +484,7 @@ export default function Dashboard({
   dataSource = "local",
 }) {
   const [userName, setUserName] = useState("there");
+  const [userAge, setUserAge] = useState(null);
 
   const [goals, setGoals] = useState(() =>
     normalizeGoals(getLocalGoals())
@@ -509,6 +536,21 @@ export default function Dashboard({
 
       const fullName =
         data?.user?.user_metadata?.full_name;
+
+      const accountAge =
+        data?.user?.user_metadata?.age;
+
+      if (mounted) {
+        const numericAge = Number(accountAge);
+
+        if (
+          Number.isInteger(numericAge) &&
+          numericAge >= 13 &&
+          numericAge <= 120
+        ) {
+          setUserAge(numericAge);
+        }
+      }
 
       if (mounted && fullName?.trim()) {
         setUserName(
@@ -582,7 +624,7 @@ export default function Dashboard({
       try {
         const key = `wellsync_dashboard_brief_v2_${new Date()
           .toISOString()
-          .slice(0, 10)}_${score}_${JSON.stringify(goals)}`;
+          .slice(0, 10)}_${score}_${JSON.stringify(goals)}_${userAge ?? "unknown"}`;
 
         const cached =
           sessionStorage.getItem(key);
@@ -596,7 +638,8 @@ export default function Dashboard({
         const response = await fetchAiBrief(
           current,
           goals,
-          history
+          history,
+          userAge
         );
 
         if (!mounted) return;
@@ -647,6 +690,7 @@ export default function Dashboard({
     current?.energy,
     current?.stress,
     history.length,
+    userAge,
   ]);
 
   const trendDelta = useMemo(() => {
@@ -1271,6 +1315,14 @@ export default function Dashboard({
           </section>
         </aside>
       </main>
+
+      <DailyRecommendations
+        data={current}
+        goals={goals}
+        history={history}
+        age={userAge}
+        onNavigate={onNavigate}
+      />
 
       <section className="dash2-bottom-grid">
         <article className="dash2-quick glass-panel">

@@ -17,6 +17,7 @@ import { getCurrentUserAgeProfile } from "../utils/ageUtils";
 import "./AICompanion.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const AI_CONVERSATION_STORAGE_KEY = "wellsync_ai_conversation_v1";
 
 function normalizeWellnessData(data) {
   if (!data) return null;
@@ -326,6 +327,33 @@ export default function AICompanion() {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    // Persist only the real conversation turns locally so the Dashboard
+    // can use recent AI context without changing the visible AI experience.
+    // The welcome message alone is never stored.
+    if (messages.length <= 1) return;
+
+    try {
+      const storedConversation = messages
+        .slice(1)
+        .slice(-12)
+        .map((message) => ({
+          role: message.role,
+          content: String(message.content || "").slice(0, 1200),
+        }))
+        .filter((message) => message.content.trim());
+
+      localStorage.setItem(
+        AI_CONVERSATION_STORAGE_KEY,
+        JSON.stringify(storedConversation)
+      );
+
+      window.dispatchEvent(
+        new CustomEvent("wellsync_ai_conversation_updated")
+      );
+    } catch {}
+  }, [messages]);
+
   async function sendMessage(text = input) {
     const cleanText = String(text || "").trim();
     if (!cleanText || sending) return;
@@ -426,6 +454,13 @@ export default function AICompanion() {
     setMessages([createWelcomeMessage()]);
     setErrorMessage("");
     setInput("");
+
+    try {
+      localStorage.removeItem(AI_CONVERSATION_STORAGE_KEY);
+      window.dispatchEvent(
+        new CustomEvent("wellsync_ai_conversation_updated")
+      );
+    } catch {}
   }
 
   const modes = [
