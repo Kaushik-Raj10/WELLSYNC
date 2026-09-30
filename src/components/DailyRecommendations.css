@@ -34,15 +34,15 @@
 .daily-rec-eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  font-size: 11px;
+  gap: 6px;
+  font-size: 10px;
   letter-spacing: 0.14em;
   font-weight: 800;
   opacity: 0.75;
 }
 
 .daily-rec-eyebrow span {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .daily-rec-header h2 {
@@ -201,6 +201,7 @@
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
 }
 
@@ -256,6 +257,7 @@
   opacity: 0.82;
   display: -webkit-box;
   -webkit-box-orient: vertical;
+  line-clamp: 4;
   -webkit-line-clamp: 4;
   overflow: hidden;
 }
